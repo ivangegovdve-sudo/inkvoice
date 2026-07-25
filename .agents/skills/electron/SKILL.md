@@ -1,6 +1,12 @@
 ---
 name: electron
-description: InkVoice Electron desktop app context. Use when working on anything in electron/, scripts/build-*.sh, scripts/download-node.sh, scripts/after-pack.js, scripts/migrate.py, electron-builder.yml, the loading screen, server spawning, data path resolution, packaging, .dmg builds, or any Electron/desktop-related task. Also use when someone asks about how the app is distributed, how to build it, how production vs dev mode works, or references any production-only behavior. Trigger on keywords: electron, dmg, bundle, package, desktop, production build, standalone, afterPack, loading screen.
+description: >-
+  InkVoice Electron desktop build and runtime context. Use when working in electron/,
+  scripts/build-*.sh, scripts/download-node.sh, scripts/after-pack.js, scripts/migrate.py,
+  electron-builder.yml, packaging, DMGs, the loading screen, server startup, bundled data
+  paths, or production-only desktop behavior. Also use when asked how the app is distributed,
+  how to build it, or how production differs from dev. Trigger on keywords: electron, dmg,
+  bundle, package, desktop, production build, standalone, afterPack, loading screen.
 ---
 
 # InkVoice Electron Desktop App
@@ -43,8 +49,6 @@ description: InkVoice Electron desktop app context. Use when working on anything
 Steps 1-2 are cached. Delete `dist-python/` or `dist-node/` to force rebuild.
 
 **Reinstall shortcut:** `pnpm electron:reinstall` — kills running app, copies fresh build into `~/Applications/`, relaunches. No admin prompt (per-user folder, unlike `/Applications/`).
-
-**No existing source code was modified** except adding `output: 'standalone'` to `next.config.mjs`.
 
 ## Gotchas
 

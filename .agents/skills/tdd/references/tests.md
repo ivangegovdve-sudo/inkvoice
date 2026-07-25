@@ -1,5 +1,14 @@
 # Good and Bad Tests
 
+## Contents
+
+- Good Tests
+- Vitest Conventions
+- Bad Tests
+- Mocking the ORM and Asserting Query Shape
+- Mocking the Internal `fetch` Call Shape
+- Standalone Callback-Stability Tests
+
 ## Good Tests
 
 **Integration-style**: Test through real interfaces, not mocks of internal parts.

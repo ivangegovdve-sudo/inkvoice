@@ -1,0 +1,7 @@
+interface:
+  display_name: 'Reinstall InkVoice'
+  short_description: 'Build and reinstall the local Electron app'
+  default_prompt: 'Use $electron-reinstall to rebuild and reinstall InkVoice locally.'
+
+policy:
+  allow_implicit_invocation: false

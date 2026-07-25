@@ -1,5 +1,15 @@
 # Integration Tests
 
+## Contents
+
+- When to Use
+- Decision Rule
+- Setup Pattern
+- Test Style
+- What Not to Integration-Test
+- Cleanup Strategy
+- Performance Expectations
+
 ## When to Use
 
 Integration tests exist for one reason: **services that wrap a real system boundary** — usually an ORM (Prisma), but also the filesystem, an in-process queue, or any subsystem whose real behavior matters more than the abstract policy you'd assert against a mock.

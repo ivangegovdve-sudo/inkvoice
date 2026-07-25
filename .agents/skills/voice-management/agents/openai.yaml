@@ -1,0 +1,7 @@
+interface:
+  display_name: 'InkVoice Voice Management'
+  short_description: 'Add voices and generate safe TTS previews'
+  default_prompt: 'Use $voice-management to add or regenerate an InkVoice voice.'
+
+policy:
+  allow_implicit_invocation: false

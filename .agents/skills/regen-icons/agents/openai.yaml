@@ -1,0 +1,7 @@
+interface:
+  display_name: 'Regenerate InkVoice Icons'
+  short_description: 'Rebuild app icons from the source SVG'
+  default_prompt: 'Use $regen-icons to rebuild all InkVoice icon assets.'
+
+policy:
+  allow_implicit_invocation: false

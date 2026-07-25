@@ -31,5 +31,5 @@ The script adds padding for macOS iconset PNGs (80% content, centered) but does 
 ## Usage
 
 ```bash
-bash .claude/skills/regen-icons/scripts/regen-icons.sh
+bash .agents/skills/regen-icons/scripts/regen-icons.sh
 ```

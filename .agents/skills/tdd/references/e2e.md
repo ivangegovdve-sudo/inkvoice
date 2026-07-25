@@ -1,5 +1,16 @@
 # E2E Tests
 
+## Contents
+
+- When This Gets Used
+- Decision Funnel
+- Spec Structure
+- Running E2E Tests
+- Debugging Failed E2E Tests
+- Common Helpers
+- Patterns
+- Anti-Patterns
+
 ## When This Gets Used
 
 E2E candidates are identified during **planning** (step 1), not after implementation. The decision funnel below runs upfront — by the time you're writing code, you already know which behaviors get E2E and which don't. Execution happens in step 5, after the unit TDD loop.
@@ -48,7 +59,7 @@ Default to **extending** an existing spec. A new spec file costs setup overhead,
 
 Three filters, all must pass:
 
-**Mock budget**: Can we mock what we need using existing helpers (`mockTTS`, `mockBookmarks`, `navigateToBook`)? If the feature needs ≤ 1 new `page.route()` mock, that's fine. If it needs 3+ new mocks or requires mocking complex state, the test scope is probably too wide — break it down or rely on unit tests.
+**Mock budget**: Can we mock what we need using existing helpers such as `mockTTS`, `mockVoiceManagement`, or `navigateToBook`? If the feature needs ≤ 1 new `page.route()` mock, that's fine. If it needs 3+ new mocks or requires mocking complex state, the test scope is probably too wide — break it down or rely on unit tests.
 
 **Determinism**: No timing dependencies. Replace `waitForTimeout` with `waitForSelector`, `expect.poll()`, or `expect().toBeVisible()`. If the behavior inherently depends on timing (animation completion, debounce settling), it's a poor E2E candidate.
 
@@ -103,92 +114,53 @@ test.describe('bookmarks', () => {
 
 ## Debugging Failed E2E Tests
 
-When a test fails, analyze the trace before touching code. Don't guess from the error message.
+When a test fails, use the focused test output and its artifacts before touching code. Don't
+guess from the error message.
 
-### Step 1: Post-mortem trace analysis (first resort)
+### Step 1: Capture a trace
 
 The project uses `trace: 'on-first-retry'` with `retries: 0`, so traces aren't recorded by default. Re-run the failing test with `--trace on` to capture one:
 
 ```bash
-PLAYWRIGHT_HTML_OPEN=never npx playwright test path/to/test.spec.ts --trace on
+PLAYWRIGHT_HTML_OPEN=never pnpm exec playwright test path/to/test.spec.ts --trace on
 ```
 
-Then analyze from the CLI:
+Read the terminal error and the generated `test-results/` artifacts first. Open the trace with
+Playwright's bundled viewer when visual inspection is useful:
 
 ```bash
-# List all actions in the trace
-npx playwright trace open test-results/<test-folder>/trace.zip
-npx playwright trace actions
-
-# Filter actions to find the failing area
-npx playwright trace actions --grep="click"
-
-# Inspect a specific action (timing, error, page state)
-npx playwright trace action 5
-
-# View DOM snapshots before/after that action
-npx playwright trace snapshot 5 --name before
-npx playwright trace snapshot 5 --name after
-
-# Close the trace session when done
-npx playwright trace close
+pnpm exec playwright show-trace test-results/<test-folder>/trace.zip
 ```
 
-### Step 2: CLI debugger (when traces aren't enough)
+### Step 2: Playwright Inspector
 
-Re-run the failing test with `--debug=cli` to step through it live. Run in background so the CLI debugger can attach to the same process:
+When the trace is not enough, re-run the focused test with Playwright Inspector:
 
 ```bash
-PLAYWRIGHT_HTML_OPEN=never npx playwright test path/to/test.spec.ts --debug=cli
+pnpm exec playwright test path/to/test.spec.ts --debug
 ```
-
-Wait for "Debugging Instructions" with a session name, then attach:
-
-```bash
-npx playwright-cli attach tw-<session-id>
-
-# Step through test execution
-npx playwright-cli step-over
-
-# Inspect current page state
-npx playwright-cli snapshot
-npx playwright-cli console
-npx playwright-cli network
-```
-
-Every action generates corresponding TypeScript code — copy it directly into the test when fixing locators or assertions.
 
 ### Workflow
 
 1. Test fails → re-run with `--trace on`
-2. `trace actions` → scan for the failing action
-3. `trace action N` + `trace snapshot N` → see what happened
-4. Fix with evidence, not guesses
-5. If still unclear → re-run with `--debug=cli` and step through
+2. Read the terminal error, `error-context.md`, screenshots, and trace
+3. Use `show-trace` to inspect the failing action and surrounding page state
+4. If still unclear → re-run with `--debug`
+5. Fix with evidence, then re-run the focused spec
 
-### Tool choice
+## Common Helpers
 
-- **`npx playwright-cli`** — debugging Playwright test runs: stepping through specs, inspecting traces, generating locators from test context
-- **`agent-browser`** — anything outside a Playwright test: visiting live URLs, manual smoke checks, scraping, non-test browser tasks
+All live in `tests/e2e/helpers/`. The directory is the source of truth; read the implementation
+before using a helper.
 
-## Keeping Playwright CLI Skills Updated
-
-The `playwright-cli` skill (`.claude/skills/playwright-cli/`) is bundled with `@playwright/cli`, which has its own release cycle independent of `@playwright/test`. After upgrading `@playwright/test`, also update the CLI to stay in sync, then reinstall skills:
-
-```bash
-pnpm update @playwright/cli
-npx playwright-cli install --skills
-```
-
-## Available Helpers
-
-All live in `tests/e2e/helpers/`. Read them before writing to understand the exact API.
-
-| Helper                 | What it does                                                          | When to use                                        |
-| ---------------------- | --------------------------------------------------------------------- | -------------------------------------------------- |
-| `mockTTS(page)`        | Intercepts `/api/tts/**`, returns silence.wav with mock cache headers | Almost every test — book pages trigger TTS on load |
-| `mockBookmarks(page)`  | In-memory CRUD for `/api/bookmarks/**`                                | Tests involving bookmark create/read/delete        |
-| `navigateToBook(page)` | Library → first book, waits for header                                | Any test that needs to be on a book page           |
+| Helper                       | What it does                                                       |
+| ---------------------------- | ------------------------------------------------------------------ |
+| `mockTTS(page)`              | Intercepts `/api/tts/**` and returns the silent audio fixture      |
+| `mockBookManagement(page)`   | Provides in-memory book list, upload, delete, and restore behavior |
+| `mockVoiceManagement(page)`  | Provides in-memory voice management APIs and silent previews       |
+| `navigateToBook(page, id?)`  | Opens a named book or selects the first book from the library      |
+| `navigateToSettings(page)`   | Opens settings and waits for voice data to render                  |
+| `selectDifferentVoice(page)` | Selects a non-current voice and waits for persistence              |
 
 **Writing new helpers**: If your new E2E test needs a mock that would be useful across multiple specs, extract it into `helpers/`. One mock per file. Follow the existing pattern: accept `Page`, call `page.route()`, return nothing.
 
@@ -220,9 +192,9 @@ page.on('request', req => {
 
 ## Anti-Patterns
 
-**`waitForTimeout` for assertions.** Flaky — passes in fast environments, fails in slow ones. The existing `prefetch.spec.ts` uses this in two places and it's a known weakness.
+**`waitForTimeout` for assertions.** Flaky — passes in fast environments, fails in slow ones.
 
-**Asserting on CSS class names for behavior.** `toHaveClass(/translate-x-0/)` is testing the animation implementation, not the behavior. Prefer `toBeVisible()` when possible. (The bookmarks spec does this — acceptable because Playwright can't "see" off-screen translated elements, but it's a compromise.)
+**Asserting on CSS class names for behavior.** `toHaveClass(/translate-x-0/)` is testing the animation implementation, not the behavior. Prefer `toBeVisible()` when possible.
 
 **Tailwind utility classes as element locators.** `page.locator('span.bg-amber-200\\/70')` breaks when colors or styles change. Use a semantic data attribute instead (e.g., `[data-active-sentence]`). Tailwind classes describe _how_ something looks, not _what_ it is — tests should target identity, not appearance.
 

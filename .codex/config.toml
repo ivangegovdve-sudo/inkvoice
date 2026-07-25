@@ -1,0 +1,5 @@
+[mcp_servers.inkvoice-storybook]
+url = "http://localhost:7007/mcp"
+
+[mcp_servers.linear-personal]
+url = "https://mcp.linear.app/mcp"

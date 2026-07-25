@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Test-Driven Development'
+  short_description: 'Build and repair InkVoice tests incrementally'
+  default_prompt: 'Use $tdd to implement this change through vertical red-green-refactor slices.'

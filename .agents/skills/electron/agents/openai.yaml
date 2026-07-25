@@ -1,0 +1,4 @@
+interface:
+  display_name: 'InkVoice Electron'
+  short_description: 'Build and troubleshoot the desktop app'
+  default_prompt: 'Use $electron to diagnose this InkVoice desktop packaging issue.'

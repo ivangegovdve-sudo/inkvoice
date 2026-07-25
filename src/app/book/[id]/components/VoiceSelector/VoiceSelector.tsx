@@ -45,7 +45,7 @@ export const VoiceSelector = ({ bookId }: VoiceSelectorProps) => {
           onOpenChange={setDropdownOpen}
           aria-label="Voice"
           className="bg-muted rounded-sm border-none px-2 py-1 text-left text-sm"
-          menuClassName="right-0"
+          menuAlign="end"
           extraOptions={[{ value: DEFAULT_SENTINEL, label: `Default (${globalDisplayName})` }]}
         />
       </Tooltip>

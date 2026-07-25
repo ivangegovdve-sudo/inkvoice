@@ -12,7 +12,7 @@ interface VoiceSelectProps {
   placeholder?: string
   id?: string
   className?: string
-  menuClassName?: string
+  menuAlign?: 'start' | 'center' | 'end'
   extraOptions?: SelectOption[]
   onOpenChange?: (open: boolean) => void
   'aria-label'?: string
@@ -25,7 +25,7 @@ export const VoiceSelect = ({
   placeholder,
   id,
   className,
-  menuClassName,
+  menuAlign,
   extraOptions,
   onOpenChange,
   'aria-label': ariaLabel,
@@ -87,7 +87,7 @@ export const VoiceSelect = ({
       placeholder={placeholder}
       id={id}
       className={className}
-      menuClassName={menuClassName}
+      menuAlign={menuAlign}
       renderOption={renderOption}
       onOpenChange={onOpenChange}
       aria-label={ariaLabel}

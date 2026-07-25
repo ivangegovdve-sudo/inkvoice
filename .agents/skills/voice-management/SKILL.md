@@ -41,7 +41,7 @@ Full workflow for adding a new voice:
 4. **Generate sample** (dev server must be **stopped**):
 
    ```bash
-   bash .claude/skills/voice-management/scripts/generate-samples.sh {voice-name}
+   bash .agents/skills/voice-management/scripts/generate-samples.sh {voice-name}
    ```
 
    > **Warning:** Do NOT generate samples while the dev server is running — concurrent requests cause voice embedding contamination on the shared model singleton.

@@ -22,13 +22,13 @@ test.describe('per-book voice selection', () => {
     await navigateToBook(page, TEST_BOOK_ID)
 
     // 3. Book voice selector should show "Default (<newVoiceName>)"
-    const bookVoiceButton = page.getByRole('button', { name: 'Voice' })
+    const bookVoiceSelect = page.getByRole('combobox', { name: 'Voice' })
 
-    await bookVoiceButton.waitFor()
-    await expect(bookVoiceButton).toContainText(`Default (${newVoiceName})`)
+    await bookVoiceSelect.waitFor()
+    await expect(bookVoiceSelect).toContainText(`Default (${newVoiceName})`)
 
     // 4. Override voice at book level
-    await bookVoiceButton.click()
+    await bookVoiceSelect.click()
     const bookListbox = page.getByRole('listbox')
 
     await bookListbox.waitFor()
@@ -49,7 +49,7 @@ test.describe('per-book voice selection', () => {
       const overrideName = (await overrideOption.locator('span').first().textContent()) ?? ''
 
       await overrideOption.click()
-      await expect(bookVoiceButton).toContainText(overrideName)
+      await expect(bookVoiceSelect).toContainText(overrideName)
     }
 
     // 5. Return to settings — selected voice should be unchanged
