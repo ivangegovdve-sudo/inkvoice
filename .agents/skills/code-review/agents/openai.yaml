@@ -1,0 +1,7 @@
+interface:
+  display_name: 'Code Review'
+  short_description: 'Review InkVoice changes before shipping'
+  default_prompt: 'Use $code-review to review the current InkVoice diff at medium effort.'
+
+policy:
+  allow_implicit_invocation: false

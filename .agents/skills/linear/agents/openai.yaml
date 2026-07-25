@@ -1,0 +1,12 @@
+interface:
+  display_name: 'Linear'
+  short_description: 'Manage InkVoice Linear issues safely'
+  default_prompt: 'Use $linear to read or update the Linear issue named in this request.'
+
+dependencies:
+  tools:
+    - type: 'mcp'
+      value: 'linear-personal'
+      description: "The owner's authenticated Linear workspace"
+      transport: 'streamable_http'
+      url: 'https://mcp.linear.app/mcp'

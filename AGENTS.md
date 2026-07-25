@@ -72,6 +72,10 @@ After a task, offer at most two follow-ups when the changed code reveals a concr
 
 Skip follow-ups when the task is self-contained. In Plan mode, include a short `Opportunities` section only when relevant.
 
+## Code Review
+
+Never use a harness-native code review such as Claude Code's bundled `review` / `security-review` or Codex's `/review`. The repository review is the manual-only `code-review` skill. A person invokes it by name (`/code-review` or `$code-review`); an agent explicitly asked to review loads `.agents/skills/code-review/SKILL.md` and follows it with the supplied arguments.
+
 ## Comments
 
 - Default to no comments. Add one when the why is non-obvious: a hidden constraint, subtle invariant, specific workaround, surprising behavior, negative-space contract, optimization rationale, or production operational note.
@@ -138,7 +142,7 @@ Split a file when data is mixed with control flow, a second consumer emerges, or
 
 ### Verification by Layer
 
-- UI: exercise the behavior with `agent-browser` before calling it done.
+- UI: load `agent-browser`, then exercise the behavior with the pinned `pnpm exec agent-browser` CLI before calling it done.
 - Backend or API: exercise the behavior with `curl` and inspect the live logs.
 - Timing-sensitive bugs involving races, workers, or background state: preserve the live reproduction recipe for the eventual commit message.
 
@@ -155,25 +159,20 @@ Keep development logs at app-level information only. Fix actionable warnings at 
 - Keep plans concise and dense.
 - Name the applicable skills in the plan.
 - End with unresolved questions.
-- For UI or UX work, load `ui-ux-pro-max`.
+- For UI or UX work, load `design-system` first and `ui-ux-pro-max` as the accessibility and usability lens.
 - For non-UI work, state why no UI or UX review is needed.
-- When tests are warranted, include a Testing section that names behaviors and layers: Storybook for React components, Vitest for logic, and Playwright for cross-page flows. Load the `tdd` skill.
-- Skip tests only for pure configuration, styling, or generated changes, and state why.
+- When tests are warranted, load `testing` and name the behavior, motivation, and smallest layer that proves it.
+- When no new test passes the `testing` value gate, state why and name the existing or runtime evidence instead.
 
 ### Verification Commands
 
-Run the full check before completion:
+Run the deterministic, non-mutating baseline before completion:
 
 ```bash
-pnpm ts && pnpm lint && pnpm test && pnpm e2e
+pnpm ts && pnpm exec eslint . && pnpm test:run
 ```
 
-For Electron changes, also run:
-
-```bash
-pnpm electron:build
-pnpm e2e:electron
-```
+Use the `testing` skill to add Storybook, integration, web E2E, or Electron build and smoke checks when the change's risk requires them.
 
 ## Git
 

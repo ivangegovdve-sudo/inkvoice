@@ -1,6 +1,7 @@
 allowBuilds:
   '@carbonid1/design-system': true
   '@prisma/engines': true
+  agent-browser: true
   better-sqlite3: true
   electron: true
   electron-winstaller: true

@@ -13,7 +13,7 @@
 
 ## When This Gets Used
 
-E2E candidates are identified during **planning** (step 1), not after implementation. The decision funnel below runs upfront — by the time you're writing code, you already know which behaviors get E2E and which don't. Execution happens in step 5, after the unit TDD loop.
+Use this reference when the testing value gate identifies a possible browser-level behavior. Apply the decision funnel before implementation when the risk is already known, or while diagnosing a regression when the required runtime layer becomes clear.
 
 Most features do NOT need E2E. The funnel filters aggressively — this is intentional. Every E2E test is a maintenance commitment: slower to run, harder to debug, more fragile than a unit test. Only write one when the confidence gap between "unit tests pass" and "this actually works" is real.
 

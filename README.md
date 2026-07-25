@@ -41,7 +41,7 @@ First launch downloads the TTS model (~1.6 GB) into `~/.cache/huggingface/`. You
 
 ## Development
 
-Prereqs: Node 22+, pnpm 11 (pinned via `packageManager`), Python 3.11.
+Prereqs: Node 24+, pnpm 11 (pinned via `packageManager`), Python 3.11.
 
 ```bash
 pnpm install
@@ -59,7 +59,7 @@ pnpm dev
 | `pnpm e2e`            | Playwright E2E               |
 | `pnpm electron:build` | Desktop app (.dmg → `dist/`) |
 
-The desktop build downloads its own Node.js and Python runtimes on the first run and caches them (`dist-node/`, `dist-python/`); subsequent builds are much faster.
+The desktop build downloads its own Node.js 22.22 and Python runtimes on the first run and caches them (`dist-node/`, `dist-python/`); these packaged runtimes are independent of the Node 24 development toolchain. Subsequent builds are much faster.
 
 ## Credits
 

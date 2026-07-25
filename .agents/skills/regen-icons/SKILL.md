@@ -2,7 +2,6 @@
 name: regen-icons
 description: Regenerate all app icons (PNGs, .icns, favicon, apple-icon) from the source SVG. Use after updating the logo SVG in design/logo/versions/. Trigger on "regenerate icons", "update icons", "regen icons", "rebuild icons", "icon assets".
 disable-model-invocation: true
-model: sonnet
 ---
 
 # Regenerate Icons

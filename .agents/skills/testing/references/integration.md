@@ -25,7 +25,7 @@ A bad signal: the service is pure logic, has no I/O, just transforms data. That'
 | Pure transformation / policy / branching | Unit (`*.test.ts`)                                                           |
 | Orchestration around an ORM/DB           | Integration (`*.integration.test.ts`)                                        |
 | Orchestration around the filesystem      | Integration                                                                  |
-| Calling an external HTTP API             | Unit, mock at `fetch` boundary (see mocking.md)                              |
+| Calling an external HTTP API             | Unit, mock at the `fetch` boundary                                           |
 | Generating audio / calling an AI model   | Unit for prompt construction + response parsing; never test the model output |
 
 ## Setup Pattern (Prisma + SQLite)
@@ -52,7 +52,7 @@ export default defineConfig({
 })
 ```
 
-**2. Exclude integration files from the unit project** so `pnpm test` stays fast:
+**2. Exclude integration files from the unit project** so `pnpm test:run` stays fast:
 
 ```ts
 // in vitest.config.ts unit project
@@ -64,50 +64,19 @@ test: {
 }
 ```
 
-**3. Setup file points the app at a per-process test DB and runs migrations once:**
+**3. Use the committed setup as the source of truth.**
 
-```ts
-// tests/integration/setup.ts
-import { execSync } from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
-import path from 'node:path'
-import { afterAll, beforeAll, beforeEach } from 'vitest'
-
-const tmpDir = path.join(process.cwd(), 'tests/integration/.tmp')
-const dbPath = path.join(tmpDir, `test-${process.pid}.db`)
-
-// Set BEFORE any imports of db.service evaluate.
-// Module-top-level code in setupFiles runs before test-file imports.
-process.env.INKVOICE_DB_PATH = dbPath
-process.env.DATABASE_URL = `file:${dbPath}`
-
-const TABLES = ['Bookmark', 'ReadingProgress', 'PregenJob' /* ... */, , 'Book'] as const
-
-beforeAll(() => {
-  mkdirSync(tmpDir, { recursive: true })
-  rmSync(dbPath, { force: true })
-  execSync('pnpm prisma migrate deploy', { env: process.env, stdio: 'pipe' })
-})
-
-afterAll(async () => {
-  const { prisma } = await import('@/lib/services/db/db.service')
-  await prisma.$disconnect()
-  rmSync(dbPath, { force: true })
-})
-
-beforeEach(async () => {
-  const { prisma } = await import('@/lib/services/db/db.service')
-  for (const table of TABLES) {
-    await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`)
-  }
-})
-```
+Read
+[tests/integration/setup.ts](../../../../tests/integration/setup.ts) before
+adding or restructuring integration coverage. It owns the complete,
+dependency-ordered table list and must change alongside `prisma/schema.prisma`
+when a table is added or removed.
 
 Why these choices:
 
 - **Per-process DB file**: parallel workers can't share SQLite cleanly; per-process keeps tests isolated without coordinating.
 - **`fileParallelism: false`**: SQLite + multiple files writing concurrently is a known footgun. The per-test-file truncation is fast (<1ms per table), so serial execution barely costs anything.
-- **`DELETE FROM` over transactions**: Prisma's `$transaction` doesn't fully isolate in SQLite, and rollback complexity adds bugs. Truncate is boring and works.
+- **Transactional cleanup**: delete every table in dependency order within one Prisma transaction so a test never observes partially cleared state.
 - **Setting env vars at module top**: `setupFiles` runs before test-file imports, so the env is in place before any service imports `db.service`.
 - **Dynamic `await import` in `beforeEach`/`afterAll`**: avoids importing `db.service` at the top of `setup.ts` before env vars are set.
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: 'UI/UX Pro Max'
+  short_description: 'Searchable UI and accessibility guidance'
+  default_prompt: 'Use $ui-ux-pro-max to review this InkVoice interface for usability and accessibility.'

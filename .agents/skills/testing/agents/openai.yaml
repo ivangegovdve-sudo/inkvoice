@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Testing'
+  short_description: 'Value-gated InkVoice testing guidance'
+  default_prompt: 'Use $testing to choose and implement only the tests this InkVoice change earns.'
