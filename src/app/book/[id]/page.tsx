@@ -1,11 +1,10 @@
 'use client'
 
-import { Button, Tooltip, buttonVariants, toast } from '@carbonid1/design-system'
+import { Button, Tooltip, buttonVariants, toast, useHotkeys } from '@carbonid1/design-system'
 import { BookMarked, ChevronLeft, List, Loader2, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useHotkeys } from 'react-hotkeys-hook'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { PregenPanelButton } from '@/components/PregenPanelButton/PregenPanelButton'
 import {

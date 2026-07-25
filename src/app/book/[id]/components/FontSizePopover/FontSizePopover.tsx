@@ -1,9 +1,8 @@
 'use client'
 
-import { Tooltip } from '@carbonid1/design-system'
+import { Tooltip, useHotkeys } from '@carbonid1/design-system'
 import { ALargeSmall } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useHotkeys } from 'react-hotkeys-hook'
 import { useDisplayStore } from '@/store/useDisplayStore'
 import { FONT_SIZE_OPTIONS } from './FontSizePopover.consts'
 

@@ -1,9 +1,7 @@
 'use client'
 
-import { getModKey, toast } from '@carbonid1/design-system'
+import { Card, getModKey, toast, useHotkeys } from '@carbonid1/design-system'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useHotkeys } from 'react-hotkeys-hook'
-import { Card } from '@/components/ui/Card/Card'
 import { useDeleteVoice } from '@/lib/hooks/useDeleteVoice/useDeleteVoice'
 import { useSampleSSE } from '@/lib/hooks/useSampleSSE/useSampleSSE'
 import { useUpdateVoiceTags } from '@/lib/hooks/useUpdateVoiceTags/useUpdateVoiceTags'
@@ -164,7 +162,7 @@ export const VoiceManagerCard = ({ voices, loading, onVoicesChanged }: VoiceMana
   )
 
   return (
-    <Card className="p-5">
+    <Card.Root className="p-5">
       <h2 className="mb-1 text-base font-semibold">Voices</h2>
       <p className="text-muted-foreground mb-4 text-xs">
         Pick a voice for narration. Switching re-generates any unheard audio.
@@ -214,6 +212,6 @@ export const VoiceManagerCard = ({ voices, loading, onVoicesChanged }: VoiceMana
           </div>
         )
       })()}
-    </Card>
+    </Card.Root>
   )
 }

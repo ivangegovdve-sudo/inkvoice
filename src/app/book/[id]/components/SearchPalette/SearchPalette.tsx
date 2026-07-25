@@ -89,7 +89,7 @@ export const SearchPalette = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           aria-label={placeholder}
-          className="focus-within:border-border rounded-none border-x-0 border-t-0 px-4 py-3 focus-within:ring-0"
+          className="has-[[data-slot=input-group-control]:focus-visible]:border-border rounded-none border-x-0 border-t-0 px-4 py-3 has-[[data-slot=input-group-control]:focus-visible]:ring-0"
           trailing={
             <>
               <div className="bg-muted flex shrink-0 rounded-md p-0.5">

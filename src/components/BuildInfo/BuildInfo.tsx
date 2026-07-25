@@ -1,7 +1,7 @@
 'use client'
 
+import { useHotkeys } from '@carbonid1/design-system'
 import { useCallback, useState } from 'react'
-import { useHotkeys } from 'react-hotkeys-hook'
 
 export const BuildInfo = () => {
   const [visible, setVisible] = useState(false)

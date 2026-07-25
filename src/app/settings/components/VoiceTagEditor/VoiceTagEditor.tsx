@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge } from '@carbonid1/design-system'
+import { Badge, Input } from '@carbonid1/design-system'
 import { useState } from 'react'
 
 interface VoiceTagEditorProps {
@@ -42,7 +42,7 @@ export const VoiceTagEditor = ({ tags, onTagsChanged, saving }: VoiceTagEditorPr
         </div>
       )}
 
-      <input
+      <Input
         type="text"
         value={tagInput}
         onChange={e => setTagInput(e.target.value)}
@@ -50,7 +50,7 @@ export const VoiceTagEditor = ({ tags, onTagsChanged, saving }: VoiceTagEditorPr
         placeholder="Add tag..."
         aria-label="Add tag"
         disabled={saving}
-        className="border-border bg-background text-foreground focus:ring-primary w-full rounded-sm border p-1.5 text-xs focus:border-transparent focus:ring-1 disabled:opacity-50"
+        className="h-auto rounded-sm p-1.5 text-xs"
       />
     </div>
   )

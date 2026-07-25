@@ -1,11 +1,10 @@
 'use client'
 
-import { Button, Select, toast } from '@carbonid1/design-system'
+import { Button, Input, Select, toast } from '@carbonid1/design-system'
 import { Upload, X } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { AudioDropZone } from '@/components/ui/AudioDropZone/AudioDropZone'
-import { Input } from '@/components/ui/Input/Input'
 import { useUploadVoice } from '@/lib/hooks/useUploadVoice/useUploadVoice'
 import { TranscriptionReview } from './components/TranscriptionReview/TranscriptionReview'
 import { UploadTips } from './components/UploadTips/UploadTips'

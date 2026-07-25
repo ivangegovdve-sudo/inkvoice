@@ -1,8 +1,7 @@
 'use client'
 
-import { Button, Tooltip } from '@carbonid1/design-system'
+import { Button, Tooltip, useHotkeys } from '@carbonid1/design-system'
 import { ChevronLeft, ChevronRight, Loader2, Pause, Play } from 'lucide-react'
-import { useHotkeys } from 'react-hotkeys-hook'
 
 interface PlaybackControlsProps {
   isPlaying: boolean

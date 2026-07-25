@@ -1,9 +1,8 @@
 'use client'
 
-import { Badge, Button, Tooltip } from '@carbonid1/design-system'
+import { Badge, Button, cardVariants, Tooltip } from '@carbonid1/design-system'
 import { X } from 'lucide-react'
 import { useId } from 'react'
-import { Card } from '@/components/ui/Card/Card'
 import { buildPregenOnboardingHref } from '@/lib/consts/onboarding/onboarding.consts'
 import { getMostRecentBookId } from '@/lib/helpers/getMostRecentBookId/getMostRecentBookId'
 import { useOnboardingDerivation } from '@/lib/hooks/useOnboardingDerivation/useOnboardingDerivation'
@@ -34,10 +33,9 @@ export const OnboardingChecklist = () => {
   }
 
   return (
-    <Card
-      as="section"
+    <section
       aria-labelledby={headingId}
-      className="mb-6 p-5 motion-safe:transition-opacity"
+      className={cardVariants({ className: 'mb-6 p-5 motion-safe:transition-opacity' })}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -71,6 +69,6 @@ export const OnboardingChecklist = () => {
           />
         ))}
       </div>
-    </Card>
+    </section>
   )
 }

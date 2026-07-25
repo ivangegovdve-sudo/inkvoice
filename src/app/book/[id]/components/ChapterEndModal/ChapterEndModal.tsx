@@ -1,7 +1,6 @@
 'use client'
 
-import { Button } from '@carbonid1/design-system'
-import { useHotkeys } from 'react-hotkeys-hook'
+import { Button, useHotkeys } from '@carbonid1/design-system'
 
 interface ChapterEndModalProps {
   isOpen: boolean

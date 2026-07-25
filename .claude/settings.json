@@ -1,9 +1,7 @@
 {
   "enabledPlugins": {
     "skill-creator@claude-plugins-official": true,
-    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
-    "core@carbonid1": true,
-    "tdd@carbonid1": false
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true
   },
   "permissions": {
     "allow": ["mcp__linear-personal"]

@@ -1,9 +1,9 @@
-import { Card } from '@/components/ui/Card/Card'
+import { cardVariants } from '@carbonid1/design-system'
 
 const LINK_CLASSES = 'text-primary hover:underline'
 
 export const CreditsCard = () => (
-  <Card as="section" className="p-5">
+  <section className={cardVariants({ className: 'p-5' })}>
     <h2 className="mb-3 text-base font-semibold">Voice Credits</h2>
     <div className="text-muted-foreground space-y-3 text-xs leading-relaxed">
       <p>
@@ -40,5 +40,5 @@ export const CreditsCard = () => (
         by Keith Ito.
       </p>
     </div>
-  </Card>
+  </section>
 )

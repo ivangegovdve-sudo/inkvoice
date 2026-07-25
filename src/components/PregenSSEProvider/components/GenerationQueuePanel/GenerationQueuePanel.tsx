@@ -1,9 +1,8 @@
 'use client'
 
-import { Badge, type BadgeProps } from '@carbonid1/design-system'
+import { Badge, type BadgeProps, useHotkeys } from '@carbonid1/design-system'
 import { X } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
-import { useHotkeys } from 'react-hotkeys-hook'
 import { computeGenerationRate } from '@/lib/helpers/computeGenerationRate/computeGenerationRate'
 import { formatDuration } from '@/lib/helpers/formatDuration/formatDuration'
 import { useTTSLifecycleStore } from '@/lib/hooks/useTTSLifecycle/useTTSLifecycle'

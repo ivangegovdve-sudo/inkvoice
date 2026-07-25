@@ -3,12 +3,12 @@
 import {
   type SelectOption,
   type SelectOptionState,
+  cardVariants,
   Kbd,
   Select,
   useTheme,
 } from '@carbonid1/design-system'
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { Card } from '@/components/ui/Card/Card'
 import { useMounted } from '@/lib/hooks/useMounted/useMounted'
 
 type ThemeOption = SelectOption & { icon: typeof Sun }
@@ -38,7 +38,7 @@ export const AppearanceCard = () => {
   const mounted = useMounted()
 
   return (
-    <Card as="section" className="p-5">
+    <section className={cardVariants({ className: 'p-5' })}>
       <h2 className="mb-3 text-base font-semibold">Appearance</h2>
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -61,6 +61,6 @@ export const AppearanceCard = () => {
           </div>
         )}
       </div>
-    </Card>
+    </section>
   )
 }

@@ -1,10 +1,9 @@
 'use client'
 
-import { Button, toast, Tooltip } from '@carbonid1/design-system'
+import { Button, Card, toast, Tooltip } from '@carbonid1/design-system'
 import { X } from 'lucide-react'
 import { useEffect, useId } from 'react'
 import { VoiceSelect } from '@/components/VoiceSelect/VoiceSelect'
-import { Card } from '@/components/ui/Card/Card'
 import { formatBytes } from '@/lib/helpers/formatBytes/formatBytes'
 import { formatDuration } from '@/lib/helpers/formatDuration/formatDuration'
 import { useBookVoice } from '@/lib/hooks/useBookVoice/useBookVoice'
@@ -66,7 +65,7 @@ export const PregenOnboardingPanel = ({ bookId, bookTitle, onClose }: Props) => 
   }
 
   return (
-    <Card className="mx-4 my-4 p-4">
+    <Card.Root className="mx-4 my-4 p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold">
           Pre-generate <span className="italic">{bookTitle}</span>
@@ -109,7 +108,7 @@ export const PregenOnboardingPanel = ({ bookId, bookTitle, onClose }: Props) => 
           Maybe later
         </Button>
       </div>
-    </Card>
+    </Card.Root>
   )
 }
 

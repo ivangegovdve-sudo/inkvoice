@@ -1,10 +1,9 @@
 'use client'
 
-import { ProgressRing, Tooltip } from '@carbonid1/design-system'
+import { Card, ProgressRing, Tooltip } from '@carbonid1/design-system'
 import { BookOpen, Check } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { Card } from '@/components/ui/Card/Card'
 import { computeProgressPercent } from '@/lib/helpers/computeProgressPercent/computeProgressPercent'
 import { formatDuration } from '@/lib/helpers/formatDuration/formatDuration'
 import { formatTimeAgo } from '@/lib/helpers/formatTimeAgo/formatTimeAgo'
@@ -60,7 +59,7 @@ export const BookCard = ({ book, onRemove }: BookCardProps) => {
   return (
     <BookCardContextMenu bookId={book.id} onRemove={onRemove}>
       <Link href={`/book/${book.id}`}>
-        <Card className="group hover:shadow-popover relative flex h-full flex-col p-4 transition-shadow">
+        <Card.Root className="group hover:shadow-popover relative flex h-full flex-col p-4 transition-shadow">
           <div className="bg-surface-inset inset-shadow-surface relative mb-3 flex aspect-2/3 w-full items-center justify-center overflow-hidden rounded-sm">
             {!coverError ? (
               <>
@@ -144,7 +143,7 @@ export const BookCard = ({ book, onRemove }: BookCardProps) => {
               </p>
             )}
           </div>
-        </Card>
+        </Card.Root>
       </Link>
     </BookCardContextMenu>
   )

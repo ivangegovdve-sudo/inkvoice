@@ -1,11 +1,9 @@
 'use client'
 
-import { Button, cn, Select, Slider, toast, Tooltip } from '@carbonid1/design-system'
+import { Button, cn, Input, Select, Slider, Switch, toast, Tooltip } from '@carbonid1/design-system'
 import { AudioLines, Dices, HelpCircle, Play, RefreshCw, Sparkles, Square, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Input } from '@/components/ui/Input/Input'
-import { Switch } from '@/components/ui/Switch/Switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs/Tabs'
 import { Textarea } from '@/components/ui/Textarea/Textarea'
 import { VOICE_PRESET_TEXTS } from '@/lib/consts/voicePresetTexts/voicePresetTexts'
@@ -379,11 +377,13 @@ export const VoiceDesignSection = ({
 
         {/* Whisper modifier — only Style attribute the model supports */}
         <label className="mt-2 flex cursor-pointer items-center gap-3 py-1">
-          <Switch
+          <Switch.Root
             checked={attributes.style === 'whisper'}
             onCheckedChange={checked => handleAttributeChange('style', checked ? 'whisper' : '')}
             aria-label="Whisper"
-          />
+          >
+            <Switch.Thumb />
+          </Switch.Root>
           <span className="flex items-baseline gap-2">
             <span className="text-sm font-medium">Whisper</span>
             <span className="text-muted-foreground text-xs">Hushed, breathy delivery</span>

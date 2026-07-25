@@ -1,9 +1,8 @@
 'use client'
 
-import { Button, Tooltip } from '@carbonid1/design-system'
+import { Button, Tooltip, useHotkeys } from '@carbonid1/design-system'
 import { ChevronDown, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useHotkeys } from 'react-hotkeys-hook'
 import type { ChapterInfo, TocNode } from '@/lib/types/book'
 import { computeStartPages } from '../../helpers/computeStartPages/computeStartPages'
 
