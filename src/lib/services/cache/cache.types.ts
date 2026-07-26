@@ -21,7 +21,7 @@ export interface CacheService {
     audio: Buffer,
     bookId?: string,
     durationMs?: number,
-  ): Promise<void>
+  ): Promise<boolean>
 
   /** Get cache statistics */
   getStats(): Promise<CacheStats>

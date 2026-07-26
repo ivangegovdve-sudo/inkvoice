@@ -316,7 +316,9 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
 
         const { audio, timestamps, durationMs, samplingRate } = ttsResult
 
-        cacheService.set(text, job.voice, audio, job.bookId, durationMs).catch(() => {})
+        const persisted = await cacheService.set(text, job.voice, audio, job.bookId, durationMs)
+
+        if (!persisted) continue
         if (timestamps) {
           cacheService.setTimestamps(text, job.voice, timestamps).catch(() => {})
         }

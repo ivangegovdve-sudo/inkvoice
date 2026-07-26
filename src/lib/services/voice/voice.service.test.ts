@@ -214,9 +214,17 @@ describe('voiceService', () => {
 
   it('soft-deletes a custom voice by setting deletedAt in DB', async () => {
     const service = createVoiceService(voicesDir)
+    const derivedDir = path.join(voicesDir, 'custom', 'my-voice', '.derived')
+
+    await fs.mkdir(derivedDir)
+    await fs.writeFile(path.join(derivedDir, 'prompt.pt'), Buffer.alloc(10))
     const result = await service.deleteVoice('my-voice')
 
     expect(result).toEqual({ ok: true })
+    await expect(fs.stat(derivedDir)).rejects.toThrow()
+    expect(await fs.readFile(path.join(voicesDir, 'custom', 'my-voice', '.deleted'), 'utf8')).toBe(
+      '',
+    )
 
     // Directory should still exist (not renamed)
     const dir = await fs.stat(path.join(voicesDir, 'custom', 'my-voice'))
@@ -257,13 +265,20 @@ describe('voiceService', () => {
 
   it('restores a soft-deleted voice by clearing deletedAt', async () => {
     const service = createVoiceService(voicesDir)
+    const deletionMarker = path.join(voicesDir, 'custom', 'my-voice', '.deleted')
+    const derivedDir = path.join(voicesDir, 'custom', 'my-voice', '.derived')
 
     // Mock: voice exists in DB with deletedAt set
     mockPrisma.voiceMetadata.findUnique.mockResolvedValueOnce({ deletedAt: 1710000000000 })
+    await fs.writeFile(deletionMarker, '')
+    await fs.mkdir(derivedDir)
+    await fs.writeFile(path.join(derivedDir, 'prompt.pt'), Buffer.alloc(10))
 
     const result = await service.restoreVoice('my-voice')
 
     expect(result).toEqual({ ok: true })
+    await expect(fs.stat(deletionMarker)).rejects.toThrow()
+    await expect(fs.stat(derivedDir)).rejects.toThrow()
 
     // DB should have been updated to clear deletedAt
     expect(mockPrisma.voiceMetadata.update).toHaveBeenCalledWith({
@@ -319,6 +334,14 @@ describe('voiceService', () => {
 
   it('allows re-upload over a soft-deleted voice', async () => {
     const service = createVoiceService(voicesDir)
+    const derivedDir = path.join(voicesDir, 'custom', 'my-voice', '.derived')
+    const deletionMarker = path.join(voicesDir, 'custom', 'my-voice', '.deleted')
+    const transcriptPath = path.join(voicesDir, 'custom', 'my-voice', 'source.txt')
+
+    await fs.mkdir(derivedDir)
+    await fs.writeFile(path.join(derivedDir, 'prompt.pt'), Buffer.alloc(10))
+    await fs.writeFile(deletionMarker, '')
+    await fs.writeFile(transcriptPath, 'transcript for deleted audio')
 
     // my-voice exists on disk (from beforeEach) and is soft-deleted in DB
     mockPrisma.voiceMetadata.findUnique.mockResolvedValueOnce({ deletedAt: 1710000000000 })
@@ -329,6 +352,9 @@ describe('voiceService', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.name).toBe('my-voice')
+    await expect(fs.stat(derivedDir)).rejects.toThrow()
+    await expect(fs.stat(deletionMarker)).rejects.toThrow()
+    await expect(fs.stat(transcriptPath)).rejects.toThrow()
 
     // upsert should clear deletedAt
     expect(mockPrisma.voiceMetadata.upsert).toHaveBeenCalledWith(
@@ -375,6 +401,21 @@ describe('voiceService', () => {
     const voicePath = await service.resolveVoicePath('my-voice')
 
     expect(voicePath).toBeNull()
+  })
+
+  it('clears derived prompt data when the transcript changes', async () => {
+    const service = createVoiceService(voicesDir)
+    const voiceDir = path.join(voicesDir, 'custom', 'my-voice')
+    const derivedDir = path.join(voiceDir, '.derived')
+
+    await fs.mkdir(derivedDir)
+    await fs.writeFile(path.join(derivedDir, 'prompt.pt'), Buffer.alloc(10))
+
+    const result = await service.saveTranscript('my-voice', ' updated transcript ')
+
+    expect(result).toEqual({ ok: true })
+    expect(await fs.readFile(path.join(voiceDir, 'source.txt'), 'utf8')).toBe('updated transcript')
+    await expect(fs.stat(derivedDir)).rejects.toThrow()
   })
 
   it('cleanup skips voices still inside the undo window', async () => {

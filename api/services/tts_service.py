@@ -10,6 +10,7 @@ import torch
 from api.app.config import settings
 from api.services.alignment_service import get_alignment_service
 from api.services.opus_encoder import encode_wav_to_opus
+from api.services.voice_clone_prompt_cache import VoiceClonePromptCache
 
 
 CLEANUP_INTERVAL = 20
@@ -22,6 +23,7 @@ class TTSService:
     def __init__(self):
         self._model = None
         self._generation_count = 0
+        self._voice_clone_prompt_cache = VoiceClonePromptCache()
 
     def _get_model(self):
         """Lazy load the OmniVoice model."""
@@ -144,18 +146,30 @@ class TTSService:
 
         try:
             start = time.time()
+            prompt_start = time.time()
+            prompt_result = self._voice_clone_prompt_cache.get_or_create(
+                model=tts_model,
+                voice_path=voice_path,
+                reference_text=ref_text,
+            )
+            prompt_time_ms = int((time.time() - prompt_start) * 1000)
+            generation_start = time.time()
             with torch.inference_mode():
                 audio_list = tts_model.generate(
                     text=text,
-                    ref_audio=str(voice_path),
-                    ref_text=ref_text,
+                    voice_clone_prompt=prompt_result.prompt,
                     class_temperature=0.3,
                 )
+            model_generation_time_ms = int((time.time() - generation_start) * 1000)
             # OmniVoice returns ndarray for very short input; normalize to (1, T) tensor.
             wav = torch.as_tensor(audio_list[0])
             if wav.dim() == 1:
                 wav = wav.unsqueeze(0)
             gen_time_ms = int((time.time() - start) * 1000)
+            print(
+                f"[tts] Voice prompt: {prompt_result.source} in {prompt_time_ms}ms; "
+                f"model generation: {model_generation_time_ms}ms"
+            )
 
             # Run forced alignment to get word-level timestamps
             alignment = get_alignment_service()

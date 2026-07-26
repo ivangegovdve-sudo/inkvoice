@@ -122,7 +122,7 @@ class TTSCacheService implements CacheService {
     audio: Buffer,
     bookId?: string,
     durationMs?: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     await this.ensureInitialized()
 
     const hash = getCacheHash(text, voice)
@@ -150,8 +150,10 @@ class TTSCacheService implements CacheService {
           durationMs: durationMs ?? null,
         },
       })
+      return true
     } catch (error) {
       console.error('Failed to write cache file:', error)
+      return false
     }
   }
 

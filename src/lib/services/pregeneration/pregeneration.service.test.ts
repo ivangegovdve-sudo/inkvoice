@@ -42,7 +42,7 @@ const mockTtsService = vi.hoisted(() => ({
 
 const mockCacheService = vi.hoisted(() => ({
   has: vi.fn(),
-  set: vi.fn().mockResolvedValue(undefined),
+  set: vi.fn().mockResolvedValue(true),
   setTimestamps: vi.fn().mockResolvedValue(undefined),
   getDurationMs: vi.fn().mockResolvedValue(0),
 }))
@@ -112,6 +112,7 @@ describe('pregenWorker', () => {
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
     })
     mockPythonClient.getCurrentInstanceId.mockReturnValue(1)
+    mockCacheService.set.mockResolvedValue(true)
     resetPregenWorker()
     // Default: getJob returns in_progress (inner loop DB check)
     mockPregenQueue.getJob.mockResolvedValue(makeJobResult({ status: 'in_progress' }))
@@ -242,6 +243,87 @@ describe('pregenWorker', () => {
 
     expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(1, 'job-1', 1, 0, 1, 3000)
     expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(2, 'job-1', 2, 0, 2, 6000)
+  })
+
+  it('persists generated audio before advancing the resume cursor', async () => {
+    const job = makeJobResult({
+      status: 'queued',
+      totalParagraphs: 1,
+      completedParagraphs: 0,
+      currentChapter: 0,
+      currentParagraph: 0,
+    })
+    const persistence = Promise.withResolvers<boolean>()
+
+    mockPregenQueue.getNext.mockResolvedValueOnce(job).mockResolvedValueOnce(null)
+    mockBookService.getBookOverview.mockResolvedValue({
+      id: 'book-1',
+      title: 'Test Book',
+      author: 'Author',
+      chapters: [{ title: 'Ch 1', paragraphCount: 1, wordCount: 50 }],
+    })
+    mockBookService.getParagraph.mockResolvedValue('Generated paragraph')
+    mockCacheService.has.mockResolvedValue(false)
+    mockCacheService.set.mockReturnValueOnce(persistence.promise)
+    mockTtsService.generate.mockResolvedValue({
+      audio: Buffer.alloc(100),
+      generationTimeMs: 5000,
+      timestamps: null,
+      durationMs: 3000,
+    })
+
+    pregenWorker.start()
+    await vi.waitFor(() => expect(mockCacheService.set).toHaveBeenCalledOnce())
+
+    expect(mockPregenQueue.updateProgress).not.toHaveBeenCalled()
+
+    persistence.resolve(true)
+    await vi.waitFor(() => expect(mockPregenQueue.updateProgress).toHaveBeenCalledOnce())
+    pregenWorker.stop()
+  })
+
+  it('does not advance the resume cursor when generated audio cannot be persisted', async () => {
+    vi.useFakeTimers()
+
+    const job = makeJobResult({
+      status: 'queued',
+      totalParagraphs: 1,
+      completedParagraphs: 0,
+      currentChapter: 0,
+      currentParagraph: 0,
+    })
+
+    mockPregenQueue.getNext.mockResolvedValueOnce(job).mockResolvedValueOnce(null)
+    mockBookService.getBookOverview.mockResolvedValue({
+      id: 'book-1',
+      title: 'Test Book',
+      author: 'Author',
+      chapters: [{ title: 'Ch 1', paragraphCount: 1, wordCount: 50 }],
+    })
+    mockBookService.getParagraph.mockResolvedValue('Generated paragraph')
+    mockCacheService.has.mockResolvedValue(false)
+    mockCacheService.set.mockResolvedValue(false)
+    mockTtsService.generate.mockResolvedValue({
+      audio: Buffer.alloc(100),
+      generationTimeMs: 5000,
+      timestamps: null,
+      durationMs: 3000,
+    })
+
+    pregenWorker.start()
+    for (let i = 0; i < 10; i++) {
+      await vi.advanceTimersByTimeAsync(35_000)
+    }
+    pregenWorker.stop()
+
+    expect(mockCacheService.set).toHaveBeenCalledTimes(6)
+    expect(mockPregenQueue.updateProgress).not.toHaveBeenCalled()
+    expect(mockPregenQueue.pause).toHaveBeenCalledWith(
+      'job-1',
+      expect.stringContaining('5 retries'),
+    )
+
+    vi.useRealTimers()
   })
 
   it('skips unspeakable paragraphs without calling TTS', async () => {

@@ -53,9 +53,17 @@ const dirExists = (dirPath: string): Promise<boolean> =>
 const readDirSafe = (dirPath: string): Promise<string[]> => readdir(dirPath).catch(() => [])
 
 const tagsSchema = z.array(z.string())
+const DERIVED_VOICE_DATA_DIR = '.derived'
+const VOICE_DELETED_MARKER = '.deleted'
 
 export const createVoiceService = (voicesDir: string) => {
   const customDir = path.join(voicesDir, 'custom')
+  const clearDerivedVoiceData = (voiceDir: string): Promise<void> =>
+    rm(path.join(voiceDir, DERIVED_VOICE_DATA_DIR), { recursive: true, force: true })
+  const clearVoiceDeletedMarker = (voiceDir: string): Promise<void> =>
+    rm(path.join(voiceDir, VOICE_DELETED_MARKER), { force: true })
+  const markVoiceDirectoryDeleted = (voiceDir: string): Promise<void> =>
+    writeFile(path.join(voiceDir, VOICE_DELETED_MARKER), '')
 
   const getMetadata = async (name: string): Promise<VoiceMetadata | null> => {
     const row = await prisma.voiceMetadata.findUnique({ where: { name } })
@@ -166,6 +174,8 @@ export const createVoiceService = (voicesDir: string) => {
         } else {
           await rm(deletedPath, { recursive: true, force: true })
         }
+        await markVoiceDirectoryDeleted(originalPath)
+        await clearDerivedVoiceData(originalPath)
       }
     })()
     return legacyCleanupPromise
@@ -253,6 +263,10 @@ export const createVoiceService = (voicesDir: string) => {
     const voiceDir = path.join(customDir, slug)
 
     await mkdir(voiceDir, { recursive: true })
+    await Promise.all([
+      clearDerivedVoiceData(voiceDir),
+      rm(path.join(voiceDir, 'source.txt'), { force: true }),
+    ])
     await writeFile(path.join(voiceDir, 'source.wav'), convertResult.buffer)
 
     // Save metadata to DB
@@ -282,6 +296,7 @@ export const createVoiceService = (voicesDir: string) => {
       // Non-fatal — OmniVoice will auto-transcribe on first use if source.txt is missing
     }
 
+    await clearVoiceDeletedMarker(voiceDir)
     return {
       ok: true,
       name: slug,
@@ -318,12 +333,14 @@ export const createVoiceService = (voicesDir: string) => {
     const voiceDir = path.join(customDir, slug)
 
     await mkdir(voiceDir, { recursive: true })
+    await clearDerivedVoiceData(voiceDir)
     await Promise.all([
       writeFile(path.join(voiceDir, 'source.wav'), wavBuffer),
       writeFile(path.join(voiceDir, 'source.txt'), refText.trim()),
     ])
 
     await upsertMetadata(slug, 'custom', 'design', { displayName, tags: [...tags] })
+    await clearVoiceDeletedMarker(voiceDir)
 
     return {
       ok: true,
@@ -342,6 +359,8 @@ export const createVoiceService = (voicesDir: string) => {
     if (!(await dirExists(customPath))) return { ok: false, reason: 'not_found' }
 
     await Promise.all([markVoiceDeleted(name), voicePreferenceService.removeByVoiceName(name)])
+    await markVoiceDirectoryDeleted(customPath)
+    await clearDerivedVoiceData(customPath)
 
     return { ok: true }
   }
@@ -363,6 +382,10 @@ export const createVoiceService = (voicesDir: string) => {
 
     if (!updated) return { ok: false, reason: 'not_found' }
 
+    const voiceDir = path.join(customDir, name)
+
+    await clearDerivedVoiceData(voiceDir)
+    await clearVoiceDeletedMarker(voiceDir)
     return { ok: true }
   }
 
@@ -458,6 +481,7 @@ export const createVoiceService = (voicesDir: string) => {
 
     if (!voiceDir) return { ok: false }
     await writeFile(path.join(voiceDir, 'source.txt'), text.trim())
+    await clearDerivedVoiceData(voiceDir)
     return { ok: true }
   }
 
