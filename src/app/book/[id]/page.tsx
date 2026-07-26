@@ -459,8 +459,6 @@ export default function BookReader() {
         completedChapterTitle={currentChapterInfo.title}
         nextChapterTitle={nextChapter?.title ?? ''}
         nextChapterPageCount={nextChapterPageCount}
-        chaptersCompleted={currentChapter + 1}
-        totalChapters={overview.chapters.length}
         onContinue={handleContinueChapter}
         onDismiss={handleDismissChapterEnd}
       />

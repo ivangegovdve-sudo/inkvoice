@@ -9,8 +9,6 @@ const meta = preview.meta({
     completedChapterTitle: 'The Beginning',
     nextChapterTitle: 'The Journey',
     nextChapterPageCount: 10,
-    chaptersCompleted: 3,
-    totalChapters: 10,
     onContinue: fn(),
     onDismiss: fn(),
   },
@@ -19,10 +17,14 @@ const meta = preview.meta({
 /** Modal shown after the last paragraph of a chapter, offering to continue into the next one. */
 export const Open = meta.story({})
 
-Open.test('renders chapter titles and progress', ({ canvas }) => {
+Open.test('renders the completed and next chapter details', ({ canvas }) => {
   expect(canvas.getByText('The Beginning')).toBeInTheDocument()
   expect(canvas.getByText('The Journey')).toBeInTheDocument()
-  expect(canvas.getByText('Chapter 3 of 10')).toBeInTheDocument()
+  expect(canvas.getByText('~10 pages')).toBeInTheDocument()
+})
+
+Open.test('omits the internal chapter count', ({ canvas }) => {
+  expect(canvas.queryByText(/^Chapter\b.*\bof\b/)).not.toBeInTheDocument()
 })
 
 Open.test('Continue button calls onContinue', async ({ canvas, args, userEvent }) => {

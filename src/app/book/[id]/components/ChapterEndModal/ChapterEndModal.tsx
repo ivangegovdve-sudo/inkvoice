@@ -7,8 +7,6 @@ interface ChapterEndModalProps {
   completedChapterTitle: string
   nextChapterTitle: string
   nextChapterPageCount: number | null
-  chaptersCompleted: number
-  totalChapters: number
   onContinue: () => void
   onDismiss: () => void
 }
@@ -18,8 +16,6 @@ export const ChapterEndModal = ({
   completedChapterTitle,
   nextChapterTitle,
   nextChapterPageCount,
-  chaptersCompleted,
-  totalChapters,
   onContinue,
   onDismiss,
 }: ChapterEndModalProps) => {
@@ -61,11 +57,6 @@ export const ChapterEndModal = ({
           {nextChapterPageCount !== null && (
             <p className="text-muted-foreground mt-1 text-sm">~{nextChapterPageCount} pages</p>
           )}
-
-          {/* Progress */}
-          <p className="text-muted-foreground mt-4 text-sm">
-            Chapter {chaptersCompleted} of {totalChapters}
-          </p>
 
           {/* Continue button */}
           <Button
