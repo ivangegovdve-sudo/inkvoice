@@ -211,6 +211,39 @@ describe('pregenWorker', () => {
     expect(mockPregenQueue.complete).toHaveBeenCalledWith('job-1')
   })
 
+  it('persists the next unprocessed paragraph as the resume cursor', async () => {
+    const job = makeJobResult({
+      status: 'queued',
+      totalParagraphs: 2,
+      completedParagraphs: 0,
+      currentChapter: 0,
+      currentParagraph: 0,
+    })
+
+    mockPregenQueue.getNext.mockResolvedValueOnce(job).mockResolvedValueOnce(null)
+    mockBookService.getBookOverview.mockResolvedValue({
+      id: 'book-1',
+      title: 'Test Book',
+      author: 'Author',
+      chapters: [
+        { title: 'Ch 1', paragraphCount: 1, wordCount: 50 },
+        { title: 'Ch 2', paragraphCount: 1, wordCount: 50 },
+      ],
+    })
+    mockBookService.getParagraph
+      .mockResolvedValueOnce('First cached paragraph')
+      .mockResolvedValueOnce('Second cached paragraph')
+    mockCacheService.has.mockResolvedValue(true)
+    mockCacheService.getDurationMs.mockResolvedValue(3000)
+
+    pregenWorker.start()
+    await new Promise(r => setTimeout(r, 50))
+    pregenWorker.stop()
+
+    expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(1, 'job-1', 1, 0, 1, 3000)
+    expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(2, 'job-1', 2, 0, 2, 6000)
+  })
+
   it('skips unspeakable paragraphs without calling TTS', async () => {
     const job = {
       id: 'job-1',
@@ -251,7 +284,7 @@ describe('pregenWorker', () => {
     // Only the prose paragraph reaches TTS; the separator still counts as progress
     expect(mockTtsService.generate).toHaveBeenCalledTimes(1)
     expect(mockTtsService.generate).toHaveBeenCalledWith('Real prose.', 'narrator')
-    expect(mockPregenQueue.updateProgress).toHaveBeenCalledWith('job-1', 0, 0, 1, 0)
+    expect(mockPregenQueue.updateProgress).toHaveBeenCalledWith('job-1', 0, 1, 1, 0)
     expect(mockPregenQueue.complete).toHaveBeenCalledWith('job-1')
   })
 

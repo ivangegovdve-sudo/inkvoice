@@ -33,6 +33,11 @@ interface PregenWorkerState {
   stoppedJobIds: Set<string>
 }
 
+interface PregenPosition {
+  chapter: number
+  paragraph: number
+}
+
 declare global {
   var pregenWorkerState: PregenWorkerState | undefined
 }
@@ -165,6 +170,14 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
     completedParagraphs = Math.min(completedParagraphs + 1, job.totalParagraphs)
   }
 
+  const getNextPosition = (chapter: number, paragraph: number): PregenPosition => {
+    const chapterInfo = overview.chapters[chapter]
+
+    return chapterInfo && paragraph + 1 < chapterInfo.paragraphCount
+      ? { chapter, paragraph: paragraph + 1 }
+      : { chapter: chapter + 1, paragraph: 0 }
+  }
+
   // Complete a paragraph without TTS (cache hit, or an unspeakable separator
   // that can never have audio); SSE emits stay batched. Returns false when the
   // job row vanished and the worker must bail.
@@ -177,10 +190,11 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
     countParagraphCompleted()
     cumulativeDurationMs += durationMs
     cachedSkipsSinceEmit++
+    const nextPosition = getNextPosition(ch, para)
     const updated = await pregenQueueService.updateProgress(
       job.id,
-      ch,
-      para,
+      nextPosition.chapter,
+      nextPosition.paragraph,
       completedParagraphs,
       cumulativeDurationMs,
     )
@@ -309,10 +323,11 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
 
         countParagraphCompleted()
         cumulativeDurationMs += durationMs
+        const nextPosition = getNextPosition(ch, para)
         const updated = await pregenQueueService.updateProgress(
           job.id,
-          ch,
-          para,
+          nextPosition.chapter,
+          nextPosition.paragraph,
           completedParagraphs,
           cumulativeDurationMs,
         )

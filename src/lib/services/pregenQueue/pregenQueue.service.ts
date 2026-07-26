@@ -10,6 +10,7 @@ type PregenJobRow = NonNullable<Awaited<ReturnType<typeof prisma.pregenJob.findF
 // the repository boundary instead of casting.
 const toPregenJob = (row: PregenJobRow): PregenJob => ({
   ...row,
+  completedParagraphs: Math.min(row.completedParagraphs, row.totalParagraphs),
   status: pregenJobStatusSchema.parse(row.status),
 })
 
@@ -95,21 +96,28 @@ const start = (id: string): Promise<PregenJob | null> =>
 
 const updateProgress = (
   id: string,
-  chapter: number,
-  paragraph: number,
+  nextChapter: number,
+  nextParagraph: number,
   completedParagraphs: number,
   generatedDurationMs?: number,
 ): Promise<PregenJob | null> =>
   swallowRecordNotFound(async () => {
-    const row = await prisma.pregenJob.update({
-      where: { id },
-      data: {
-        currentChapter: chapter,
-        currentParagraph: paragraph,
-        completedParagraphs,
-        ...(generatedDurationMs !== undefined && { generatedDurationMs }),
-        updatedAt: Date.now(),
-      },
+    const row = await prisma.$transaction(async tx => {
+      const current = await tx.pregenJob.findUniqueOrThrow({
+        where: { id },
+        select: { totalParagraphs: true },
+      })
+
+      return tx.pregenJob.update({
+        where: { id },
+        data: {
+          currentChapter: nextChapter,
+          currentParagraph: nextParagraph,
+          completedParagraphs: Math.min(completedParagraphs, current.totalParagraphs),
+          ...(generatedDurationMs !== undefined && { generatedDurationMs }),
+          updatedAt: Date.now(),
+        },
+      })
     })
 
     return toPregenJob(row)

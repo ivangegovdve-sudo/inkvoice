@@ -19,6 +19,7 @@ export interface PregenJob {
   totalParagraphs: number
   completedParagraphs: number
   generatedDurationMs: number
+  /** Next paragraph the worker will process. */
   currentChapter: number
   currentParagraph: number
   errorMessage: string | null

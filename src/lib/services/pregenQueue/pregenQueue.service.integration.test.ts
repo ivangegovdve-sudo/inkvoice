@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { prisma } from '@/lib/services/db/db.service'
 import { pregenQueueService } from './pregenQueue.service'
 
 const MISSING_ID = '00000000-0000-0000-0000-000000000000'
@@ -99,5 +100,30 @@ describe('pregenQueueService (integration) — reposition', () => {
     const job = await pregenQueueService.enqueue('book-start-position', 'narrator', 200, 5, 12)
 
     expect(job).toMatchObject({ currentChapter: 5, currentParagraph: 12 })
+  })
+})
+
+describe('pregenQueueService (integration) — progress bounds', () => {
+  it('persists completed progress at no more than the job total', async () => {
+    const job = await pregenQueueService.enqueue('book-progress-bounds', 'narrator', 100)
+
+    const updated = await pregenQueueService.updateProgress(job.id, 4, 12, 101)
+    const persisted = await prisma.pregenJob.findUniqueOrThrow({ where: { id: job.id } })
+
+    expect(updated?.completedParagraphs).toBe(100)
+    expect(persisted.completedParagraphs).toBe(100)
+  })
+
+  it('normalizes an existing out-of-range row when returning it to callers', async () => {
+    const job = await pregenQueueService.enqueue('book-legacy-progress', 'narrator', 100)
+
+    await prisma.pregenJob.update({
+      where: { id: job.id },
+      data: { completedParagraphs: 101 },
+    })
+
+    const result = await pregenQueueService.getJob(job.id)
+
+    expect(result?.completedParagraphs).toBe(100)
   })
 })
