@@ -240,10 +240,12 @@ export const PlayerContainer = ({
     // Replay effect handles replayKey changes — skip to avoid double fetch
     if (replayKey !== prevReplayKeyRef.current) return
 
-    // If at chapter boundary, re-trigger interstitial instead of replaying
+    // Replay the final paragraph after the interstitial is dismissed. Its next
+    // ended event will offer the chapter transition again.
     if (pendingChapterAdvanceRef.current) {
-      setPlaying(false)
-      onChapterEndRef.current?.()
+      pendingChapterAdvanceRef.current = false
+      playingPositionRef.current = null
+      playCurrentParagraph()
       return
     }
 
@@ -256,15 +258,7 @@ export const PlayerContainer = ({
     } else {
       playCurrentParagraph()
     }
-  }, [
-    isPlaying,
-    currentChapter,
-    currentParagraph,
-    replayKey,
-    playCurrentParagraph,
-    resume,
-    setPlaying,
-  ])
+  }, [isPlaying, currentChapter, currentParagraph, replayKey, playCurrentParagraph, resume])
 
   const triggerReplay = useEffectEvent(() => {
     playingPositionRef.current = null
