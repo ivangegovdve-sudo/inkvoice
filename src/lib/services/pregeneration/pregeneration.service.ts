@@ -7,6 +7,7 @@ import { pregenEvents } from '@/lib/services/pregenEvents/pregenEvents.service'
 import { pregenQueueService } from '@/lib/services/pregenQueue/pregenQueue.service'
 import { PREGEN_JOB_STATUS, type PregenJob } from '@/lib/services/pregenQueue/pregenQueue.types'
 import { getPythonClient } from '@/lib/services/pythonClient/pythonClient'
+import { textNormalizationService } from '@/lib/services/textNormalization/textNormalization.service'
 import { getTTSService } from '@/lib/services/tts/tts.server'
 
 import { DEFAULT_VOICE } from '@/lib/services/voice/voice.consts'
@@ -263,11 +264,13 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
         continue
       }
 
+      const synthesisText = await textNormalizationService.resolveText(text)
+
       // Skip already-cached paragraphs
-      const isCached = await cacheService.has(text, job.voice)
+      const isCached = await cacheService.has(synthesisText, job.voice)
 
       if (isCached) {
-        const durationMs = await cacheService.getDurationMs(text, job.voice)
+        const durationMs = await cacheService.getDurationMs(synthesisText, job.voice)
 
         if (!(await recordSkippedParagraph(ch, para, durationMs, 'cached-skip updateProgress')))
           return
@@ -316,11 +319,17 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
 
         const { audio, timestamps, durationMs, samplingRate } = ttsResult
 
-        const persisted = await cacheService.set(text, job.voice, audio, job.bookId, durationMs)
+        const persisted = await cacheService.set(
+          synthesisText,
+          job.voice,
+          audio,
+          job.bookId,
+          durationMs,
+        )
 
         if (!persisted) continue
         if (timestamps) {
-          cacheService.setTimestamps(text, job.voice, timestamps).catch(() => {})
+          cacheService.setTimestamps(synthesisText, job.voice, timestamps).catch(() => {})
         }
 
         countParagraphCompleted()

@@ -47,6 +47,10 @@ const mockCacheService = vi.hoisted(() => ({
   getDurationMs: vi.fn().mockResolvedValue(0),
 }))
 
+const mockTextNormalizationService = vi.hoisted(() => ({
+  resolveText: vi.fn((text: string) => Promise.resolve(text)),
+}))
+
 const mockDiskSpace = vi.hoisted(() => ({
   getAvailableSpace: vi
     .fn()
@@ -74,6 +78,9 @@ vi.mock('@/lib/services/pythonClient/pythonClient', () => ({
 }))
 vi.mock('@/lib/services/cache/cache.service', () => ({
   getCacheService: () => mockCacheService,
+}))
+vi.mock('@/lib/services/textNormalization/textNormalization.service', () => ({
+  textNormalizationService: mockTextNormalizationService,
 }))
 vi.mock('@/lib/services/platform/diskSpace', () => ({
   diskSpaceService: mockDiskSpace,
@@ -113,6 +120,9 @@ describe('pregenWorker', () => {
     })
     mockPythonClient.getCurrentInstanceId.mockReturnValue(1)
     mockCacheService.set.mockResolvedValue(true)
+    mockTextNormalizationService.resolveText.mockImplementation((text: string) =>
+      Promise.resolve(text),
+    )
     resetPregenWorker()
     // Default: getJob returns in_progress (inner loop DB check)
     mockPregenQueue.getJob.mockResolvedValue(makeJobResult({ status: 'in_progress' }))
@@ -210,6 +220,44 @@ describe('pregenWorker', () => {
     // Only 1 TTS call (second paragraph), first was skipped
     expect(mockTtsService.generate).toHaveBeenCalledTimes(1)
     expect(mockPregenQueue.complete).toHaveBeenCalledWith('job-1')
+  })
+
+  it('uses normalized synthesis text for cache identity', async () => {
+    const job = makeJobResult({
+      status: 'queued',
+      totalParagraphs: 1,
+    })
+
+    mockPregenQueue.getNext.mockResolvedValueOnce(job).mockResolvedValueOnce(null)
+    mockBookService.getBookOverview.mockResolvedValue({
+      id: 'book-1',
+      title: 'Test Book',
+      author: 'Author',
+      chapters: [{ title: 'Ch 1', paragraphCount: 1, wordCount: 2 }],
+    })
+    mockBookService.getParagraph.mockResolvedValue('Chapter 12')
+    mockTextNormalizationService.resolveText.mockResolvedValue('Chapter twelve')
+    mockCacheService.has.mockResolvedValue(false)
+    mockTtsService.generate.mockResolvedValue({
+      audio: Buffer.alloc(100),
+      generationTimeMs: 5000,
+      timestamps: null,
+      durationMs: 3000,
+    })
+
+    pregenWorker.start()
+    await new Promise(resolve => setTimeout(resolve, 50))
+    pregenWorker.stop()
+
+    expect(mockTextNormalizationService.resolveText).toHaveBeenCalledWith('Chapter 12')
+    expect(mockTtsService.generate).toHaveBeenCalledWith('Chapter 12', 'narrator')
+    expect(mockCacheService.set).toHaveBeenCalledWith(
+      'Chapter twelve',
+      'narrator',
+      expect.any(Buffer),
+      'book-1',
+      3000,
+    )
   })
 
   it('persists the next unprocessed paragraph as the resume cursor', async () => {

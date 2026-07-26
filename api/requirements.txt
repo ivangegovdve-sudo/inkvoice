@@ -13,6 +13,11 @@ accelerate==1.13.0
 
 # App deps
 omnivoice==0.2.1
+# OmniVoice's documented WeTextProcessing extra depends on Pynini, which has
+# no macOS arm64 wheel. wetext ships the same WeText grammars with a portable
+# kaldifst wheel, so the standalone Electron runtime can enable the feature.
+wetext==0.1.4
+num2words==0.5.14
 fastapi==0.135.2
 uvicorn[standard]==0.42.0
 python-multipart==0.0.22

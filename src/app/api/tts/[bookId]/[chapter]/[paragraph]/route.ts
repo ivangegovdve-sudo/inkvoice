@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { isSpeakableText } from '@/lib/helpers/isSpeakableText/isSpeakableText'
 import { getBookService } from '@/lib/services/book/book.service'
 import { getCacheService } from '@/lib/services/cache/cache.service'
+import { textNormalizationService } from '@/lib/services/textNormalization/textNormalization.service'
 import { resolveValidVoice } from '@/lib/services/voice/helpers/resolveValidVoice/resolveValidVoice'
 import { DEFAULT_VOICE } from '@/lib/services/voice/voice.consts'
 import { voiceService } from '@/lib/services/voice/voice.service'
@@ -58,8 +59,9 @@ export const GET = async (request: NextRequest, { params }: RouteParams) => {
   }
 
   const cacheService = getCacheService()
+  const synthesisText = await textNormalizationService.resolveText(text)
 
-  const cached = await cacheService.get(text, voice)
+  const cached = await cacheService.get(synthesisText, voice)
 
   if (!cached) {
     return NextResponse.json({ error: 'Audio not generated' }, { status: 404 })
@@ -75,7 +77,7 @@ export const GET = async (request: NextRequest, { params }: RouteParams) => {
 
   if (fellBack) headers['X-Voice-Fallback'] = 'true'
 
-  const timestamps = await cacheService.getTimestamps(text, voice)
+  const timestamps = await cacheService.getTimestamps(synthesisText, voice)
 
   if (timestamps) {
     headers['X-Word-Timestamps'] = Buffer.from(JSON.stringify(timestamps)).toString('base64')

@@ -8,6 +8,10 @@ export interface DesignResult {
 
 export type DesignFormat = 'opus' | 'wav'
 
+export interface GenerateOptions {
+  includeAlignment?: boolean
+}
+
 export interface DesignOptions {
   format?: DesignFormat
   classTemperature?: number
@@ -18,6 +22,7 @@ export interface TTSService {
   generate(
     text: string,
     voice: string,
+    options?: GenerateOptions,
   ): Promise<{
     audio: Buffer
     generationTimeMs: number

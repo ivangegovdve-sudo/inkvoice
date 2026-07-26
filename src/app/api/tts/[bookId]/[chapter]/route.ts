@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { isSpeakableText } from '@/lib/helpers/isSpeakableText/isSpeakableText'
 import { getBookService } from '@/lib/services/book/book.service'
 import { getCacheService } from '@/lib/services/cache/cache.service'
+import { textNormalizationService } from '@/lib/services/textNormalization/textNormalization.service'
 import { resolveValidVoice } from '@/lib/services/voice/helpers/resolveValidVoice/resolveValidVoice'
 import { DEFAULT_VOICE } from '@/lib/services/voice/voice.consts'
 import { voiceService } from '@/lib/services/voice/voice.service'
@@ -32,7 +33,8 @@ export const GET = async (request: NextRequest, { params }: RouteParams) => {
       return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
     }
 
-    const cached = await getCacheService().hasMany(parsedChapter.paragraphs, voice)
+    const synthesisTexts = await textNormalizationService.resolveTexts(parsedChapter.paragraphs)
+    const cached = await getCacheService().hasMany(synthesisTexts, voice)
     // Unspeakable paragraphs never get audio and never need it — reporting
     // them as missing would disable play with nothing to generate.
     const missingParagraphs = cached.flatMap((isCached, index) =>

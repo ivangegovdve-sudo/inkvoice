@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getPythonClient } from '@/lib/services/pythonClient/pythonClient'
+import { getTTSService } from '@/lib/services/tts/tts.server'
 import { validateVoiceParam } from '../helpers/validateVoiceParam/validateVoiceParam'
 
 export const POST = async (request: Request, { params }: { params: Promise<{ name: string }> }) => {
@@ -16,28 +16,18 @@ export const POST = async (request: Request, { params }: { params: Promise<{ nam
       return NextResponse.json({ error: 'Text is required' }, { status: 400 })
     }
 
-    const response = await getPythonClient().fetch('/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.trim(), voice: name }),
-      signal: AbortSignal.timeout(300_000),
+    const result = await getTTSService().generate(text.trim(), name, {
+      includeAlignment: false,
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-
-      return NextResponse.json({ error: errorText }, { status: response.status })
-    }
-
-    const audioBuffer = await response.arrayBuffer()
-
-    return new NextResponse(audioBuffer, {
+    return new NextResponse(new Uint8Array(result.audio), {
       headers: {
         'Content-Type': 'audio/ogg',
         'Cache-Control': 'no-store',
       },
     })
-  } catch {
+  } catch (error) {
+    console.error(`Preview generation failed for "${name}":`, error)
     return NextResponse.json({ error: 'Preview generation failed' }, { status: 500 })
   }
 }

@@ -1,6 +1,8 @@
 import gc
 import io
+import threading
 import time
+import warnings
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -23,6 +25,8 @@ class TTSService:
     def __init__(self):
         self._model = None
         self._generation_count = 0
+        self._generation_lock = threading.Lock()
+        self._normalizer_lock = threading.Lock()
         self._voice_clone_prompt_cache = VoiceClonePromptCache()
 
     def _get_model(self):
@@ -32,7 +36,11 @@ class TTSService:
             import os
             os.environ["TRANSFORMERS_VERBOSITY"] = "error"
             logging.getLogger("transformers").setLevel(logging.ERROR)
-            from omnivoice import OmniVoice
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", category=DeprecationWarning, module=r"pydub\.utils"
+                )
+                from omnivoice import OmniVoice
             # MPS doesn't support fp16 matmul — use fp32 on Apple Silicon, fp16 on CUDA
             dtype = torch.float32 if settings.device == "mps" else torch.float16
             self._model = OmniVoice.from_pretrained(
@@ -41,6 +49,34 @@ class TTSService:
                 dtype=dtype,
             )
         return self._model
+
+    def normalize_text(self, text: str, language: Optional[str] = None) -> str:
+        """Return OmniVoice's optional spoken-form text without loading the model."""
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=DeprecationWarning, module=r"pydub\.utils"
+            )
+            from omnivoice.utils import text as omnivoice_text
+        from wetext import Normalizer
+
+        # OmniVoice's built-in normalizer imports Pynini-backed `tn` modules.
+        # Pre-populating its cached normalizers keeps the public normalization
+        # behavior while using wetext's portable kaldifst runtime on Apple Silicon.
+        with self._normalizer_lock:
+            if omnivoice_text._EN_NORMALIZER is None:
+                omnivoice_text._EN_NORMALIZER = Normalizer(lang="en", operator="tn")
+            if omnivoice_text._ZH_NORMALIZER is None:
+                omnivoice_text._ZH_NORMALIZER = Normalizer(
+                    lang="zh",
+                    operator="tn",
+                    remove_interjections=False,
+                    remove_erhua=False,
+                    traditional_to_simple=False,
+                    remove_puncts=False,
+                    full_to_half=False,
+                )
+
+            return omnivoice_text.normalize_text(text, language)
 
     def get_voice_path(self, voice_name: str) -> Path:
         """Get the path to a voice file, checking app voices then custom voices."""
@@ -86,21 +122,24 @@ class TTSService:
         Returns:
             Tuple of (audio_bytes, generation_time_ms, duration_ms)
         """
-        tts_model = self._get_model()
         wav = None
         buffer = None
 
         try:
-            if seed is not None:
-                _set_torch_seed(seed)
+            with self._generation_lock:
+                tts_model = self._get_model()
+                if seed is not None:
+                    _set_torch_seed(seed)
+                self.normalize_text(text)
 
-            start = time.time()
-            with torch.inference_mode():
-                audio_list = tts_model.generate(
-                    text=text,
-                    instruct=instruct,
-                    class_temperature=class_temperature,
-                )
+                start = time.time()
+                with torch.inference_mode():
+                    audio_list = tts_model.generate(
+                        text=text,
+                        instruct=instruct,
+                        class_temperature=class_temperature,
+                        normalize_text=True,
+                    )
             wav = torch.as_tensor(audio_list[0])
             if wav.dim() == 1:
                 wav = wav.unsqueeze(0)
@@ -129,6 +168,7 @@ class TTSService:
         self,
         text: str,
         voice: str | None = None,
+        include_alignment: bool = True,
     ) -> Tuple[bytes, int, Optional[list[dict]], int, Optional[float]]:
         """
         Generate speech audio from text with optional word-level timestamps.
@@ -140,26 +180,30 @@ class TTSService:
         voice_path = self.get_voice_path(voice_name)
         ref_text = self._get_ref_text(voice_path)
 
-        tts_model = self._get_model()
         wav = None
         buffer = None
 
         try:
-            start = time.time()
-            prompt_start = time.time()
-            prompt_result = self._voice_clone_prompt_cache.get_or_create(
-                model=tts_model,
-                voice_path=voice_path,
-                reference_text=ref_text,
-            )
-            prompt_time_ms = int((time.time() - prompt_start) * 1000)
-            generation_start = time.time()
-            with torch.inference_mode():
-                audio_list = tts_model.generate(
-                    text=text,
-                    voice_clone_prompt=prompt_result.prompt,
-                    class_temperature=0.3,
+            with self._generation_lock:
+                tts_model = self._get_model()
+                self.normalize_text(text)
+
+                start = time.time()
+                prompt_start = time.time()
+                prompt_result = self._voice_clone_prompt_cache.get_or_create(
+                    model=tts_model,
+                    voice_path=voice_path,
+                    reference_text=ref_text,
                 )
+                prompt_time_ms = int((time.time() - prompt_start) * 1000)
+                generation_start = time.time()
+                with torch.inference_mode():
+                    audio_list = tts_model.generate(
+                        text=text,
+                        voice_clone_prompt=prompt_result.prompt,
+                        class_temperature=0.3,
+                        normalize_text=True,
+                    )
             model_generation_time_ms = int((time.time() - generation_start) * 1000)
             # OmniVoice returns ndarray for very short input; normalize to (1, T) tensor.
             wav = torch.as_tensor(audio_list[0])
@@ -172,8 +216,10 @@ class TTSService:
             )
 
             # Run forced alignment to get word-level timestamps
-            alignment = get_alignment_service()
-            timestamps = alignment.align(wav, OMNIVOICE_SAMPLE_RATE, text)
+            timestamps = None
+            if include_alignment:
+                alignment = get_alignment_service()
+                timestamps = alignment.align(wav, OMNIVOICE_SAMPLE_RATE, text)
 
             duration_ms = int(wav.shape[1] / OMNIVOICE_SAMPLE_RATE * 1000)
 

@@ -1,6 +1,6 @@
 import { parseTimestampsHeader } from '@/lib/helpers/parseTimestampsHeader/parseTimestampsHeader'
 import { getPythonClient } from '@/lib/services/pythonClient/pythonClient'
-import { type DesignOptions, type TTSService, TTSError } from './tts.types'
+import { type DesignOptions, type GenerateOptions, type TTSService, TTSError } from './tts.types'
 
 const TTS_TIMEOUT_MS = 180_000
 const TTS_COLD_TIMEOUT_MS = 300_000
@@ -10,7 +10,7 @@ let lastInstanceId = -1
 let generationCount = 0
 
 class TTSServiceImpl implements TTSService {
-  async generate(text: string, voice: string) {
+  async generate(text: string, voice: string, options: GenerateOptions = {}) {
     const client = getPythonClient()
     const instanceId = client.getCurrentInstanceId()
 
@@ -25,7 +25,11 @@ class TTSServiceImpl implements TTSService {
     const response = await client.fetch('/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice }),
+      body: JSON.stringify({
+        text,
+        voice,
+        include_alignment: options.includeAlignment ?? true,
+      }),
       signal: AbortSignal.timeout(timeout),
     })
 

@@ -15,7 +15,13 @@ warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 
-from api.models.requests import TTSRequest, TTSDesignRequest, HealthResponse
+from api.models.requests import (
+    HealthResponse,
+    TextNormalizationRequest,
+    TextNormalizationResponse,
+    TTSDesignRequest,
+    TTSRequest,
+)
 from api.services.text_preprocessing import normalize_ellipsis
 from api.services.tts_service import get_tts_service
 
@@ -52,6 +58,7 @@ def text_to_speech(request: TTSRequest) -> Response:
         audio_bytes, gen_time_ms, timestamps, duration_ms, sampling_rate = service.generate(
             text=text,
             voice=request.voice,
+            include_alignment=request.include_alignment,
         )
         print(f"[tts] Done in {gen_time_ms}ms ({duration_ms}ms audio)")
 
@@ -70,7 +77,7 @@ def text_to_speech(request: TTSRequest) -> Response:
         return Response(
             content=audio_bytes,
             media_type="audio/ogg",
-            headers=headers,
+            headers={**headers, "Cache-Control": "no-store"},
         )
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -119,8 +126,29 @@ def text_to_speech_design(request: TTSDesignRequest) -> Response:
                 "Content-Disposition": f"attachment; filename={filename}",
                 "X-Generation-Time-Ms": str(gen_time_ms),
                 "X-Audio-Duration-Ms": str(duration_ms),
+                "Cache-Control": "no-store",
             },
         )
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/tts/normalize", response_model=TextNormalizationResponse)
+def normalize_text(request: TextNormalizationRequest) -> TextNormalizationResponse:
+    """Normalize text without loading the speech model."""
+    if not request.texts:
+        raise HTTPException(status_code=400, detail="At least one text is required")
+    if any(not isinstance(text, str) for text in request.texts):
+        raise HTTPException(status_code=400, detail="Every text must be a string")
+
+    try:
+        service = get_tts_service()
+        normalized = [
+            service.normalize_text(text, request.language)
+            for text in request.texts
+        ]
+        return TextNormalizationResponse(texts=normalized)
     except Exception as e:
         traceback.print_exc(file=sys.stderr)
         raise HTTPException(status_code=500, detail=str(e))
