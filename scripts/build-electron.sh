@@ -100,6 +100,35 @@ console.log('         Hoisted ' + count + ' packages');
 
 node scripts/nest-pnpm-deps.js
 
+# Next.js traces native modules from the host install, whose Node ABI may differ
+# from the Node runtime bundled with the desktop app.
+BETTER_SQLITE3_SOURCE_DIR="$(dirname "$(node -p "require.resolve('better-sqlite3/package.json')")")"
+PREBUILD_INSTALL_BIN="$(realpath "$BETTER_SQLITE3_SOURCE_DIR/../prebuild-install/bin.js")"
+STAGED_BETTER_SQLITE3_DIR="$PROJECT_DIR/dist-nextjs/node_modules/better-sqlite3"
+
+(
+  cd "$STAGED_BETTER_SQLITE3_DIR"
+  "$PROJECT_DIR/dist-node/bin/node" "$PREBUILD_INSTALL_BIN"
+)
+
+STAGED_BETTER_SQLITE3_BINARY="$STAGED_BETTER_SQLITE3_DIR/build/Release/better_sqlite3.node"
+while IFS= read -r traced_binary; do
+  if [ "$traced_binary" != "$STAGED_BETTER_SQLITE3_BINARY" ]; then
+    cp "$STAGED_BETTER_SQLITE3_BINARY" "$traced_binary"
+  fi
+done < <(
+  find "$PROJECT_DIR/dist-nextjs" \
+    -type f \
+    -path '*/better-sqlite3*/build/Release/better_sqlite3.node'
+)
+
+"$PROJECT_DIR/dist-node/bin/node" -e "
+const Database = require('$STAGED_BETTER_SQLITE3_DIR');
+const database = new Database(':memory:');
+database.prepare('SELECT 1').get();
+database.close();
+"
+
 # Step 4: Compile Electron TypeScript
 echo -e "\n${YELLOW}[4/5] Compiling Electron...${NC}"
 pnpm run build:electron
