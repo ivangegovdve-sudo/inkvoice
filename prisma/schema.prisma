@@ -76,6 +76,10 @@ model PregenJob {
   generatedDurationMs Int     @default(0)
   currentChapter      Int     @default(0)
   currentParagraph    Int     @default(0)
+  generationStartChapter   Int?
+  generationStartParagraph Int?
+  generationSegmentNumber  Int?
+  readyWordsInSegment      Int?
   errorMessage        String?
   createdAt           Int // Unix timestamp ms
   updatedAt           Int // Unix timestamp ms

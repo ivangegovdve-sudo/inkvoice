@@ -22,6 +22,10 @@ export interface PregenJob {
   /** Next paragraph the worker will process. */
   currentChapter: number
   currentParagraph: number
+  generationStartChapter: number | null
+  generationStartParagraph: number | null
+  generationSegmentNumber: number | null
+  readyWordsInSegment: number | null
   errorMessage: string | null
   createdAt: number
   updatedAt: number

@@ -10,6 +10,10 @@ const makeJobResult = vi.hoisted(() => (overrides: Record<string, unknown> = {})
   generatedDurationMs: 0,
   currentChapter: 0,
   currentParagraph: 0,
+  generationStartChapter: 0,
+  generationStartParagraph: 0,
+  generationSegmentNumber: 0,
+  readyWordsInSegment: 0,
   errorMessage: null,
   createdAt: Date.now(),
   updatedAt: Date.now(),
@@ -175,6 +179,46 @@ describe('pregenWorker', () => {
     expect(mockCacheService.set).toHaveBeenCalledTimes(2)
     expect(mockPregenQueue.complete).toHaveBeenCalledWith('job-1')
     expect(mockPregenQueue.updateProgress).toHaveBeenCalledTimes(2)
+    expect(mockPregenQueue.updateProgress).toHaveBeenLastCalledWith(
+      'job-1',
+      expect.objectContaining({ readyWordsInSegment: 4 }),
+    )
+  })
+
+  it('starts legacy jobs as a conservative segment from their resume cursor', async () => {
+    const job = makeJobResult({
+      status: 'queued',
+      totalParagraphs: 1,
+      generationStartChapter: null,
+      generationStartParagraph: null,
+      generationSegmentNumber: null,
+      readyWordsInSegment: null,
+    })
+
+    mockPregenQueue.getNext.mockResolvedValueOnce(job).mockResolvedValueOnce(null)
+    mockBookService.getBookOverview.mockResolvedValue({
+      id: 'book-1',
+      title: 'Test Book',
+      author: 'Author',
+      chapters: [{ title: 'Ch 1', paragraphCount: 1, wordCount: 2 }],
+    })
+    mockBookService.getParagraph.mockResolvedValue('Legacy paragraph')
+    mockCacheService.has.mockResolvedValue(true)
+
+    pregenWorker.start()
+    await new Promise(resolve => setTimeout(resolve, 50))
+    pregenWorker.stop()
+
+    expect(mockPregenQueue.updateProgress).toHaveBeenCalledWith('job-1', {
+      nextChapter: 1,
+      nextParagraph: 0,
+      completedParagraphs: 1,
+      generatedDurationMs: 0,
+      generationStartChapter: 0,
+      generationStartParagraph: 0,
+      generationSegmentNumber: 1,
+      readyWordsInSegment: 2,
+    })
   })
 
   it('skips already-cached paragraphs', async () => {
@@ -289,8 +333,28 @@ describe('pregenWorker', () => {
     await new Promise(r => setTimeout(r, 50))
     pregenWorker.stop()
 
-    expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(1, 'job-1', 1, 0, 1, 3000)
-    expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(2, 'job-1', 2, 0, 2, 6000)
+    expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(
+      1,
+      'job-1',
+      expect.objectContaining({
+        nextChapter: 1,
+        nextParagraph: 0,
+        completedParagraphs: 1,
+        generatedDurationMs: 3000,
+        readyWordsInSegment: 3,
+      }),
+    )
+    expect(mockPregenQueue.updateProgress).toHaveBeenNthCalledWith(
+      2,
+      'job-1',
+      expect.objectContaining({
+        nextChapter: 2,
+        nextParagraph: 0,
+        completedParagraphs: 2,
+        generatedDurationMs: 6000,
+        readyWordsInSegment: 6,
+      }),
+    )
   })
 
   it('persists generated audio before advancing the resume cursor', async () => {
@@ -327,6 +391,10 @@ describe('pregenWorker', () => {
 
     persistence.resolve(true)
     await vi.waitFor(() => expect(mockPregenQueue.updateProgress).toHaveBeenCalledOnce())
+    expect(mockPregenQueue.updateProgress).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({ readyWordsInSegment: 2 }),
+    )
     pregenWorker.stop()
   })
 
@@ -414,7 +482,16 @@ describe('pregenWorker', () => {
     // Only the prose paragraph reaches TTS; the separator still counts as progress
     expect(mockTtsService.generate).toHaveBeenCalledTimes(1)
     expect(mockTtsService.generate).toHaveBeenCalledWith('Real prose.', 'narrator')
-    expect(mockPregenQueue.updateProgress).toHaveBeenCalledWith('job-1', 0, 1, 1, 0)
+    expect(mockPregenQueue.updateProgress).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({
+        nextChapter: 0,
+        nextParagraph: 1,
+        completedParagraphs: 1,
+        generatedDurationMs: 0,
+        readyWordsInSegment: 1,
+      }),
+    )
     expect(mockPregenQueue.complete).toHaveBeenCalledWith('job-1')
   })
 

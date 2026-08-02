@@ -5,6 +5,17 @@ import { type PregenJob, PREGEN_JOB_STATUS, pregenJobStatusSchema } from './preg
 
 type PregenJobRow = NonNullable<Awaited<ReturnType<typeof prisma.pregenJob.findFirst>>>
 
+interface PregenProgressUpdate {
+  nextChapter: number
+  nextParagraph: number
+  completedParagraphs: number
+  generatedDurationMs: number
+  generationStartChapter: number
+  generationStartParagraph: number
+  generationSegmentNumber: number
+  readyWordsInSegment: number
+}
+
 // SQLite stores `status` as TEXT (Prisma doesn't support native enums on
 // SQLite), so the column is typed as string at the ORM layer. Validate at
 // the repository boundary instead of casting.
@@ -29,6 +40,10 @@ const enqueue = async (
       totalParagraphs,
       currentChapter: startChapter,
       currentParagraph: startParagraph,
+      generationStartChapter: startChapter,
+      generationStartParagraph: startParagraph,
+      generationSegmentNumber: 0,
+      readyWordsInSegment: 0,
       createdAt: now,
       updatedAt: now,
     },
@@ -94,13 +109,7 @@ const start = (id: string): Promise<PregenJob | null> =>
     return toPregenJob(row)
   })
 
-const updateProgress = (
-  id: string,
-  nextChapter: number,
-  nextParagraph: number,
-  completedParagraphs: number,
-  generatedDurationMs?: number,
-): Promise<PregenJob | null> =>
+const updateProgress = (id: string, progress: PregenProgressUpdate): Promise<PregenJob | null> =>
   swallowRecordNotFound(async () => {
     const row = await prisma.$transaction(async tx => {
       const current = await tx.pregenJob.findUniqueOrThrow({
@@ -111,10 +120,14 @@ const updateProgress = (
       return tx.pregenJob.update({
         where: { id },
         data: {
-          currentChapter: nextChapter,
-          currentParagraph: nextParagraph,
-          completedParagraphs: Math.min(completedParagraphs, current.totalParagraphs),
-          ...(generatedDurationMs !== undefined && { generatedDurationMs }),
+          currentChapter: progress.nextChapter,
+          currentParagraph: progress.nextParagraph,
+          completedParagraphs: Math.min(progress.completedParagraphs, current.totalParagraphs),
+          generatedDurationMs: progress.generatedDurationMs,
+          generationStartChapter: progress.generationStartChapter,
+          generationStartParagraph: progress.generationStartParagraph,
+          generationSegmentNumber: progress.generationSegmentNumber,
+          readyWordsInSegment: progress.readyWordsInSegment,
           updatedAt: Date.now(),
         },
       })
@@ -178,6 +191,10 @@ const reposition = (id: string, chapter: number, paragraph: number): Promise<Pre
           generatedDurationMs: old.generatedDurationMs,
           currentChapter: chapter,
           currentParagraph: paragraph,
+          generationStartChapter: chapter,
+          generationStartParagraph: paragraph,
+          generationSegmentNumber: (old.generationSegmentNumber ?? 0) + 1,
+          readyWordsInSegment: 0,
           createdAt: old.createdAt,
           updatedAt: Date.now(),
         },

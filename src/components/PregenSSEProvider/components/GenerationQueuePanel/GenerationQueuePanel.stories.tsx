@@ -13,6 +13,10 @@ const ODYSSEY_JOB = buildPregenJob({
   totalParagraphs: 1259,
   completedParagraphs: 12,
   currentParagraph: 12,
+  generationStartChapter: 7,
+  generationStartParagraph: 5,
+  generationSegmentNumber: 1,
+  readyWordsInSegment: 700,
 })
 
 const JEKYLL_JOB = buildPregenJob({
@@ -24,6 +28,7 @@ const JEKYLL_JOB = buildPregenJob({
   generatedDurationMs: 754_000,
   currentChapter: 4,
   currentParagraph: 130,
+  readyWordsInSegment: 4_200,
 })
 
 const BOOKS: Book[] = [
@@ -61,11 +66,22 @@ export const WithJobs = meta.story({})
 
 WithJobs.test('exposes each generation job as a named list item', ({ canvas }) => {
   expect(canvas.getAllByRole('listitem')).toHaveLength(2)
-  canvas.getByRole('listitem', { name: 'The Odyssey: Paused, 12 of 1259 paragraphs' })
   canvas.getByRole('listitem', {
-    name: 'The Strange Case of Dr. Jekyll and Mr. Hyde: Generating, 130 of 364 paragraphs, about 7m left',
+    name: /The Odyssey: Paused, About 2 pages ready from here/,
+  })
+  canvas.getByRole('listitem', {
+    name: /The Strange Case of Dr\. Jekyll and Mr\. Hyde: Generating, About 12 pages ready, estimated at 350 words per page, 130 of 364 paragraphs, about 7m left/,
   })
 })
+
+WithJobs.test(
+  'makes pages the primary metric and omits the internal generation rate',
+  ({ canvas }) => {
+    expect(canvas.getByText('~12 pages ready')).toBeVisible()
+    expect(canvas.getByText('~2 pages ready from here')).toBeVisible()
+    expect(canvas.queryByText(/it\/s/)).not.toBeInTheDocument()
+  },
+)
 
 WithJobs.test('estimates time left for the actively generating job', ({ canvas }) => {
   expect(canvas.getByText(/~7m left/)).toBeVisible()
@@ -74,6 +90,35 @@ WithJobs.test('estimates time left for the actively generating job', ({ canvas }
 WithJobs.test('names the panel region and its close button for assistive tech', ({ canvas }) => {
   canvas.getByRole('region', { name: 'Generation Queue' })
   canvas.getByRole('button', { name: 'Close generation queue' })
+})
+
+/** Completed whole-book and generate-from-here segments keep their scopes distinct. */
+export const CompletedSegments = meta.story({
+  beforeEach: () => {
+    const wholeBook = buildPregenJob({
+      ...JEKYLL_JOB,
+      status: 'completed',
+      completedParagraphs: JEKYLL_JOB.totalParagraphs,
+      readyWordsInSegment: 34_651,
+    })
+    const fromHere = buildPregenJob({
+      ...ODYSSEY_JOB,
+      status: 'completed',
+      readyWordsInSegment: 1_051,
+    })
+
+    usePregenStore.setState({
+      jobs: { [wholeBook.bookId]: wholeBook, [fromHere.bookId]: fromHere },
+      progressSamples: {},
+    })
+  },
+})
+
+CompletedSegments.test('distinguishes whole-book completion from ready-to-end', ({ canvas }) => {
+  expect(canvas.getByText('~100 pages ready')).toBeVisible()
+  expect(canvas.getByText('Entire book', { exact: false })).toBeVisible()
+  expect(canvas.getByText('~4 pages ready from here')).toBeVisible()
+  expect(canvas.getByText('Ready to the end')).toBeVisible()
 })
 
 /** Queue popover with no generation jobs queued. */

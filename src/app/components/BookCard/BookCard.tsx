@@ -7,7 +7,8 @@ import { useState } from 'react'
 import { computeProgressPercent } from '@/lib/helpers/computeProgressPercent/computeProgressPercent'
 import { formatDuration } from '@/lib/helpers/formatDuration/formatDuration'
 import { formatTimeAgo } from '@/lib/helpers/formatTimeAgo/formatTimeAgo'
-import type { PregenJob } from '@/lib/services/pregenQueue/pregenQueue.types'
+import { getReadyPagesDisplay } from '@/lib/helpers/getReadyPagesDisplay/getReadyPagesDisplay'
+import { type PregenJob, PREGEN_JOB_STATUS } from '@/lib/services/pregenQueue/pregenQueue.types'
 import type { Book } from '@/lib/types/book'
 import { usePregenStore } from '@/store/usePregenStore'
 import { useProgressStore } from '@/store/useProgressStore'
@@ -32,9 +33,30 @@ const getPregenRingColor = (job: PregenJob, isWarmingUp: boolean): string => {
   return 'text-muted-foreground'
 }
 
-const getPregenRingLabel = (job: PregenJob, isWarmingUp: boolean): string => {
+const getPregenStateLabel = (job: PregenJob, isWarmingUp: boolean): string => {
   if (isWarmingUp) return 'AI model warming up'
-  if (job.status === 'queued') return 'Queued'
+
+  switch (job.status) {
+    case PREGEN_JOB_STATUS.QUEUED:
+      return 'Queued'
+    case PREGEN_JOB_STATUS.PAUSED:
+      return 'Paused'
+    case PREGEN_JOB_STATUS.COMPLETED:
+      return 'Completed'
+    default:
+      return 'Generating'
+  }
+}
+
+const getPregenRingLabel = (job: PregenJob, isWarmingUp: boolean): string => {
+  const readyPages = getReadyPagesDisplay(job)
+
+  if (readyPages) {
+    return `${readyPages.accessibleLabel} · ${getPregenStateLabel(job, isWarmingUp)}`
+  }
+
+  if (isWarmingUp) return 'AI model warming up · Page count unavailable'
+  if (job.status === PREGEN_JOB_STATUS.QUEUED) return 'Queued · Page count unavailable'
 
   const duration = formatDuration(job.generatedDurationMs)
   const paragraphs =
@@ -43,6 +65,17 @@ const getPregenRingLabel = (job: PregenJob, isWarmingUp: boolean): string => {
       : `${job.completedParagraphs} of ${job.totalParagraphs} paragraphs`
 
   return duration ? `${paragraphs} · ${duration}` : paragraphs
+}
+
+const getPregenRingProgress = (job: PregenJob): number | null => {
+  if (job.status === PREGEN_JOB_STATUS.COMPLETED) return 1
+
+  const readyPages = getReadyPagesDisplay(job)
+
+  if (readyPages && !readyPages.wholeBook) return null
+  if (job.totalParagraphs === 0) return 0
+
+  return job.completedParagraphs / job.totalParagraphs
 }
 
 export const BookCard = ({ book, onRemove }: BookCardProps) => {
@@ -55,6 +88,7 @@ export const BookCard = ({ book, onRemove }: BookCardProps) => {
   const isWarmingUp = usePregenStore(s => s.warmingUpBookId === book.id)
 
   const ringLabel = job ? getPregenRingLabel(job, isWarmingUp) : ''
+  const ringProgress = job ? getPregenRingProgress(job) : 0
 
   return (
     <BookCardContextMenu bookId={book.id} onRemove={onRemove}>
@@ -117,9 +151,7 @@ export const BookCard = ({ book, onRemove }: BookCardProps) => {
               <Tooltip label={ringLabel} delay={600}>
                 <div className="flex shrink-0 items-center">
                   <ProgressRing
-                    progress={
-                      job.totalParagraphs > 0 ? job.completedParagraphs / job.totalParagraphs : 0
-                    }
+                    progress={ringProgress}
                     colorClass={getPregenRingColor(job, isWarmingUp)}
                     label={ringLabel}
                     animate={isWarmingUp || job.status === 'in_progress'}

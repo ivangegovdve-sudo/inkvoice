@@ -1,12 +1,17 @@
 'use client'
 
-import { Badge, type BadgeProps, useHotkeys } from '@carbonid1/design-system'
+import { Badge, type BadgeProps, Button, Item, Text, useHotkeys } from '@carbonid1/design-system'
 import { X } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { computeGenerationRate } from '@/lib/helpers/computeGenerationRate/computeGenerationRate'
 import { formatDuration } from '@/lib/helpers/formatDuration/formatDuration'
+import { getReadyPagesDisplay } from '@/lib/helpers/getReadyPagesDisplay/getReadyPagesDisplay'
 import { useTTSLifecycleStore } from '@/lib/hooks/useTTSLifecycle/useTTSLifecycle'
-import type { PregenJob, PregenJobStatus } from '@/lib/services/pregenQueue/pregenQueue.types'
+import {
+  type PregenJob,
+  PREGEN_JOB_STATUS,
+  type PregenJobStatus,
+} from '@/lib/services/pregenQueue/pregenQueue.types'
 import type { LifecycleState } from '@/lib/services/pythonClient/pythonClient.types'
 import { useLibraryStore } from '@/store/useLibraryStore'
 import { type ProgressSample, usePregenStore } from '@/store/usePregenStore'
@@ -18,7 +23,7 @@ interface StatusBadge {
 
 const STATUS_BADGES: Partial<Record<PregenJobStatus, StatusBadge>> = {
   queued: { label: 'Queued', variant: 'default' },
-  in_progress: { label: 'Generating', variant: 'primary' },
+  in_progress: { label: 'Generating', variant: 'default' },
   paused: { label: 'Paused', variant: 'attention' },
   completed: { label: 'Completed', variant: 'success' },
 }
@@ -53,11 +58,39 @@ const TTS_LIFECYCLE_BADGES: Record<LifecycleState, StatusBadge> = {
   stopping: { label: 'Stopping', variant: 'attention' },
 }
 
+const getJobMetadata = (job: PregenJob, wholeBook: boolean | undefined): string | null => {
+  const durationLabel = formatDuration(job.generatedDurationMs)
+
+  if (wholeBook) {
+    return [
+      job.status === PREGEN_JOB_STATUS.COMPLETED ? 'Entire book' : null,
+      `${job.completedParagraphs} / ${job.totalParagraphs} paragraphs`,
+      durationLabel ? `${durationLabel} audio` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+
+  if (wholeBook === false && job.status === PREGEN_JOB_STATUS.COMPLETED) {
+    return 'Ready to the end'
+  }
+
+  if (wholeBook === undefined) {
+    return [
+      `${job.completedParagraphs} / ${job.totalParagraphs} paragraphs`,
+      durationLabel ? `${durationLabel} audio` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+
+  return null
+}
+
 export const GenerationQueuePanel = () => {
   const open = usePregenStore(s => s.panelOpen)
   const togglePanel = usePregenStore(s => s.togglePanel)
   const jobs = usePregenStore(s => s.jobs)
-  const samplingRates = usePregenStore(s => s.samplingRates)
   const progressSamples = usePregenStore(s => s.progressSamples)
   const warmingUpBookId = usePregenStore(s => s.warmingUpBookId)
   const books = useLibraryStore(s => s.books)
@@ -95,56 +128,89 @@ export const GenerationQueuePanel = () => {
     >
       <div className="border-border flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold">Generation Queue</h2>
+          <Text as="h2" variant="label" weight="semibold">
+            Generation Queue
+          </Text>
           <Badge variant={ttsBadge.variant}>TTS · {ttsBadge.label}</Badge>
         </div>
-        <button
+        <Button
+          variant="ghost"
+          size="smallIcon"
           onClick={togglePanel}
           aria-label="Close generation queue"
-          className="hover:bg-accent rounded p-1"
         >
-          <X className="size-4" />
-        </button>
+          <X aria-hidden />
+        </Button>
       </div>
 
       <div className="max-h-80 overflow-y-auto p-2">
         {jobList.length === 0 ? (
-          <p className="text-muted-foreground py-4 text-center text-sm">No generation jobs</p>
+          <Text color="muted" className="py-4 text-center">
+            No generation jobs
+          </Text>
         ) : (
           <ul className="space-y-1">
             {jobList.map(job => {
               const status =
                 warmingUpBookId === job.bookId ? WARMING_UP_BADGE : getStatusBadge(job.status)
               const title = bookTitles[job.bookId] ?? job.bookId
-              const remainingLabel = getRemainingLabel(job, progressSamples[job.bookId])
+              const readyPages = getReadyPagesDisplay(job)
+              const remainingLabel = readyPages?.wholeBook
+                ? getRemainingLabel(job, progressSamples[job.bookId])
+                : null
+              const metadata = getJobMetadata(job, readyPages?.wholeBook)
+              const pageLabel = readyPages?.visualLabel ?? 'Page count unavailable'
+              const accessiblePageLabel =
+                readyPages?.accessibleLabel ?? 'Page count unavailable for this existing job'
+              const accessibleLabel = [
+                `${title}: ${status.label}`,
+                accessiblePageLabel,
+                readyPages?.wholeBook
+                  ? `${job.completedParagraphs} of ${job.totalParagraphs} paragraphs`
+                  : null,
+                remainingLabel ? `about ${remainingLabel} left` : null,
+                job.errorMessage ? `Error: ${job.errorMessage}` : null,
+              ]
+                .filter(Boolean)
+                .join(', ')
 
               return (
-                <li
+                <Item.Root
+                  as="li"
                   key={job.id}
-                  aria-label={`${title}: ${status.label}, ${job.completedParagraphs} of ${job.totalParagraphs} paragraphs${remainingLabel ? `, about ${remainingLabel} left` : ''}`}
-                  className="bg-surface-inset inset-shadow-surface rounded-md px-3 py-2"
+                  aria-label={accessibleLabel}
+                  surface="inset"
+                  className="items-stretch gap-0 p-3"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 truncate text-sm font-medium">{title}</span>
-                    <Badge variant={status.variant} className="shrink-0">
-                      {status.label}
-                    </Badge>
-                  </div>
-                  <div className="text-muted-foreground mt-1 flex items-center justify-between text-xs">
-                    <span>
-                      {job.completedParagraphs} / {job.totalParagraphs}
-                      {job.generatedDurationMs > 0 &&
-                        ` · ${formatDuration(job.generatedDurationMs)}`}
-                      {job.status === 'in_progress' &&
-                        samplingRates[job.bookId] != null &&
-                        ` · ${samplingRates[job.bookId]?.toFixed(1)} it/s`}
-                      {remainingLabel && ` · ~${remainingLabel} left`}
-                    </span>
-                    {job.errorMessage && (
-                      <span className="text-destructive truncate">{job.errorMessage}</span>
+                  <Item.Content className="gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Item.Title className="min-w-0 truncate">{title}</Item.Title>
+                      <Badge variant={status.variant} className="shrink-0">
+                        {status.label}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <Text as="span" variant="label" numeric>
+                        {pageLabel}
+                      </Text>
+                      {remainingLabel && (
+                        <Text as="span" variant="caption" color="default" numeric>
+                          ~{remainingLabel} left
+                        </Text>
+                      )}
+                    </div>
+                    {metadata && (
+                      <Text variant="caption" color="default" numeric className="wrap-anywhere">
+                        {metadata}
+                      </Text>
                     )}
-                  </div>
-                </li>
+                    {job.errorMessage && (
+                      <Text color="destructive" variant="caption" className="wrap-anywhere">
+                        {job.errorMessage}
+                      </Text>
+                    )}
+                  </Item.Content>
+                </Item.Root>
               )
             })}
           </ul>

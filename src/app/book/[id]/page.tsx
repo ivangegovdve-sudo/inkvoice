@@ -14,6 +14,7 @@ import {
 import { useBookVoice } from '@/lib/hooks/useBookVoice/useBookVoice'
 import { useBookmarkToggle } from '@/lib/hooks/useBookmarkToggle/useBookmarkToggle'
 import { useDebouncedLoading } from '@/lib/hooks/useDebouncedLoading/useDebouncedLoading'
+import { ESTIMATED_WORDS_PER_PAGE } from '@/lib/services/book/helpers/estimatePageCount/estimatePageCount'
 import type { Bookmark } from '@/lib/services/bookmark/bookmark.types'
 import type { ChapterInfo, ParsedChapter } from '@/lib/types/book'
 import { useBookmarkStore } from '@/store/useBookmarkStore'
@@ -32,10 +33,7 @@ import { ReturnPill } from './components/ReturnPill/ReturnPill'
 import { SearchPalette } from './components/SearchPalette/SearchPalette'
 import { VoiceSelector } from './components/VoiceSelector/VoiceSelector'
 import { PlayerContainer } from './components/player/PlayerContainer'
-import {
-  WORDS_PER_PAGE,
-  computePagePosition,
-} from './helpers/computePagePosition/computePagePosition'
+import { computePagePosition } from './helpers/computePagePosition/computePagePosition'
 import { shouldShowChapterProgress } from './helpers/shouldShowChapterProgress/shouldShowChapterProgress'
 import { useAudioAvailability } from './hooks/useAudioAvailability/useAudioAvailability'
 import { useAudioGenerationStatus } from './hooks/useAudioGenerationStatus/useAudioGenerationStatus'
@@ -280,7 +278,7 @@ export default function BookReader() {
   const nextChapter = overview.chapters[currentChapter + 1]
   const nextChapterPageCount =
     nextChapter && shouldShowChapterProgress({ wordsInChapter: nextChapter.wordCount })
-      ? Math.ceil(nextChapter.wordCount / WORDS_PER_PAGE)
+      ? Math.ceil(nextChapter.wordCount / ESTIMATED_WORDS_PER_PAGE)
       : null
 
   return (

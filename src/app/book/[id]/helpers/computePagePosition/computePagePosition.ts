@@ -1,4 +1,4 @@
-export const WORDS_PER_PAGE = 350
+import { ESTIMATED_WORDS_PER_PAGE } from '@/lib/services/book/helpers/estimatePageCount/estimatePageCount'
 
 interface PagePositionInput {
   chapter: number
@@ -21,7 +21,7 @@ export const computePagePosition = (input: PagePositionInput): PagePosition | nu
 
   if (totalWords === 0) return null
 
-  const totalPages = Math.ceil(totalWords / WORDS_PER_PAGE)
+  const totalPages = Math.ceil(totalWords / ESTIMATED_WORDS_PER_PAGE)
 
   const wordsInPriorChapters = wordsPerChapter.slice(0, chapter).reduce((a, b) => a + b, 0)
   const currentChapterParagraphs = paragraphsPerChapter[chapter] ?? 0
@@ -29,7 +29,7 @@ export const computePagePosition = (input: PagePositionInput): PagePosition | nu
   const currentChapterWords = wordsPerChapter[chapter] ?? 0
   const wordsRead = wordsInPriorChapters + paragraphFraction * currentChapterWords
 
-  const currentPage = Math.min(Math.floor(wordsRead / WORDS_PER_PAGE) + 1, totalPages)
+  const currentPage = Math.min(Math.floor(wordsRead / ESTIMATED_WORDS_PER_PAGE) + 1, totalPages)
 
   return { currentPage, totalPages }
 }

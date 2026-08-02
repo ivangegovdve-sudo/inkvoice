@@ -1,6 +1,7 @@
 import { env } from '@/lib/config/env'
 import { isSpeakableText } from '@/lib/helpers/isSpeakableText/isSpeakableText'
 import { getBookService } from '@/lib/services/book/book.service'
+import { countWords } from '@/lib/services/book/helpers/countWords/countWords'
 import { getCacheService } from '@/lib/services/cache/cache.service'
 import { diskSpaceService } from '@/lib/services/platform/diskSpace'
 import { pregenEvents } from '@/lib/services/pregenEvents/pregenEvents.service'
@@ -161,14 +162,28 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
     return
   }
 
-  let completedParagraphs = job.completedParagraphs
-  let cumulativeDurationMs = job.generatedDurationMs
-  let cachedSkipsSinceEmit = 0
+  const generationSegment = {
+    startChapter: job.generationStartChapter ?? job.currentChapter,
+    startParagraph: job.generationStartParagraph ?? job.currentParagraph,
+    number: job.generationSegmentNumber ?? 1,
+  }
+  const progress = {
+    completedParagraphs: job.completedParagraphs,
+    generatedDurationMs: job.generatedDurationMs,
+    readyWordsInSegment: job.readyWordsInSegment ?? 0,
+    cachedSkipsSinceEmit: 0,
+  }
 
   // A job repositioned backward re-walks paragraphs its preserved counter
   // already includes — clamp so progress can never read past the total.
   const countParagraphCompleted = () => {
-    completedParagraphs = Math.min(completedParagraphs + 1, job.totalParagraphs)
+    progress.completedParagraphs = Math.min(progress.completedParagraphs + 1, job.totalParagraphs)
+  }
+
+  const countContentReady = (text: string, durationMs: number) => {
+    countParagraphCompleted()
+    progress.generatedDurationMs += durationMs
+    progress.readyWordsInSegment += countWords(text)
   }
 
   const getNextPosition = (chapter: number, paragraph: number): PregenPosition => {
@@ -179,34 +194,40 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
       : { chapter: chapter + 1, paragraph: 0 }
   }
 
+  const persistProgress = (nextPosition: PregenPosition): Promise<PregenJob | null> =>
+    pregenQueueService.updateProgress(job.id, {
+      nextChapter: nextPosition.chapter,
+      nextParagraph: nextPosition.paragraph,
+      completedParagraphs: progress.completedParagraphs,
+      generatedDurationMs: progress.generatedDurationMs,
+      generationStartChapter: generationSegment.startChapter,
+      generationStartParagraph: generationSegment.startParagraph,
+      generationSegmentNumber: generationSegment.number,
+      readyWordsInSegment: progress.readyWordsInSegment,
+    })
+
   // Complete a paragraph without TTS (cache hit, or an unspeakable separator
   // that can never have audio); SSE emits stay batched. Returns false when the
   // job row vanished and the worker must bail.
   const recordSkippedParagraph = async (
     ch: number,
     para: number,
+    text: string,
     durationMs: number,
     logContext: string,
   ): Promise<boolean> => {
-    countParagraphCompleted()
-    cumulativeDurationMs += durationMs
-    cachedSkipsSinceEmit++
+    countContentReady(text, durationMs)
+    progress.cachedSkipsSinceEmit++
     const nextPosition = getNextPosition(ch, para)
-    const updated = await pregenQueueService.updateProgress(
-      job.id,
-      nextPosition.chapter,
-      nextPosition.paragraph,
-      completedParagraphs,
-      cumulativeDurationMs,
-    )
+    const updated = await persistProgress(nextPosition)
 
     if (!updated) {
       logVanished(job.id, logContext)
       return false
     }
-    if (cachedSkipsSinceEmit >= CACHED_SKIP_EMIT_INTERVAL) {
+    if (progress.cachedSkipsSinceEmit >= CACHED_SKIP_EMIT_INTERVAL) {
       emitJob(updated)
-      cachedSkipsSinceEmit = 0
+      progress.cachedSkipsSinceEmit = 0
     }
     return true
   }
@@ -231,7 +252,7 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
         return
       }
 
-      if (completedParagraphs % DISK_CHECK_INTERVAL === 0) {
+      if (progress.completedParagraphs % DISK_CHECK_INTERVAL === 0) {
         try {
           const diskInfo = await diskSpaceService.getAvailableSpace(env.cacheDir)
 
@@ -260,7 +281,8 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
       // to silence — count them completed without TTS so the job can't pause
       // retrying audio that will never exist.
       if (!isSpeakableText(text)) {
-        if (!(await recordSkippedParagraph(ch, para, 0, 'unspeakable-skip updateProgress'))) return
+        if (!(await recordSkippedParagraph(ch, para, text, 0, 'unspeakable-skip updateProgress')))
+          return
         continue
       }
 
@@ -272,17 +294,19 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
       if (isCached) {
         const durationMs = await cacheService.getDurationMs(synthesisText, job.voice)
 
-        if (!(await recordSkippedParagraph(ch, para, durationMs, 'cached-skip updateProgress')))
+        if (
+          !(await recordSkippedParagraph(ch, para, text, durationMs, 'cached-skip updateProgress'))
+        )
           return
         continue
       }
 
       // Flush any pending cached skip progress before TTS
-      if (cachedSkipsSinceEmit > 0) {
+      if (progress.cachedSkipsSinceEmit > 0) {
         const current = await pregenQueueService.getJob(job.id)
 
         if (current) emitJob(current)
-        cachedSkipsSinceEmit = 0
+        progress.cachedSkipsSinceEmit = 0
       }
 
       let generated = false
@@ -332,16 +356,9 @@ const processJob = async (job: PregenJob, myLoopId: number): Promise<void> => {
           cacheService.setTimestamps(synthesisText, job.voice, timestamps).catch(() => {})
         }
 
-        countParagraphCompleted()
-        cumulativeDurationMs += durationMs
+        countContentReady(text, durationMs)
         const nextPosition = getNextPosition(ch, para)
-        const updated = await pregenQueueService.updateProgress(
-          job.id,
-          nextPosition.chapter,
-          nextPosition.paragraph,
-          completedParagraphs,
-          cumulativeDurationMs,
-        )
+        const updated = await persistProgress(nextPosition)
 
         if (!updated) {
           logVanished(job.id, 'post-TTS updateProgress')
