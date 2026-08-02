@@ -84,6 +84,7 @@ describe('useAudioAvailability', () => {
         generationSegmentNumber: 0,
         readyWordsInSegment: 2,
         errorMessage: null,
+        dismissedAt: null,
         createdAt: 0,
         updatedAt: 0,
       })

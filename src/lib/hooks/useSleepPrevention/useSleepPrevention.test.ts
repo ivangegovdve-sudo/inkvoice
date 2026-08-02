@@ -21,6 +21,7 @@ const makeJob = (overrides: Partial<PregenJob> = {}): PregenJob => ({
   generationSegmentNumber: 0,
   readyWordsInSegment: 0,
   errorMessage: null,
+  dismissedAt: null,
   createdAt: Date.now(),
   updatedAt: Date.now(),
   ...overrides,

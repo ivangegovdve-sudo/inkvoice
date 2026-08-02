@@ -1,6 +1,14 @@
 'use client'
 
-import { Badge, type BadgeProps, Button, Item, Text, useHotkeys } from '@carbonid1/design-system'
+import {
+  Badge,
+  type BadgeProps,
+  Button,
+  Item,
+  Text,
+  Tooltip,
+  useHotkeys,
+} from '@carbonid1/design-system'
 import { X } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { computeGenerationRate } from '@/lib/helpers/computeGenerationRate/computeGenerationRate'
@@ -87,6 +95,27 @@ const getJobMetadata = (job: PregenJob, wholeBook: boolean | undefined): string 
   return null
 }
 
+const dismissCompletedJob = async (job: PregenJob): Promise<void> => {
+  try {
+    const response = await fetch(`/api/pregenerate/${job.bookId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'dismiss', jobId: job.id }),
+    })
+
+    if (!response.ok) {
+      console.warn(`Could not dismiss completed generation for ${job.bookId}`)
+      return
+    }
+
+    const dismissed: PregenJob = await response.json()
+
+    usePregenStore.getState().updateJob(dismissed)
+  } catch (error) {
+    console.error(`Failed to dismiss completed generation for ${job.bookId}:`, error)
+  }
+}
+
 export const GenerationQueuePanel = () => {
   const open = usePregenStore(s => s.panelOpen)
   const togglePanel = usePregenStore(s => s.togglePanel)
@@ -109,7 +138,7 @@ export const GenerationQueuePanel = () => {
     return map
   }, [books])
 
-  const jobList = useMemo(() => Object.values(jobs), [jobs])
+  const jobList = useMemo(() => Object.values(jobs).filter(job => job.dismissedAt === null), [jobs])
 
   // Only the Library page fills the library store; opened anywhere else, jobs
   // would render as raw book IDs. Gated on open-with-jobs so idle pages never
@@ -180,11 +209,26 @@ export const GenerationQueuePanel = () => {
                   key={job.id}
                   aria-label={accessibleLabel}
                   surface="inset"
-                  className="items-stretch gap-0 p-3"
+                  className="group hover:bg-accent items-stretch gap-0 p-3"
                 >
                   <Item.Content className="gap-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <Item.Title className="min-w-0 truncate">{title}</Item.Title>
+                    <div className="flex items-center gap-1">
+                      <Item.Title className="min-w-0 flex-1 truncate">{title}</Item.Title>
+                      {job.status === PREGEN_JOB_STATUS.COMPLETED && (
+                        <Tooltip label="Dismiss">
+                          <Button
+                            variant="ghost"
+                            size="smallIcon"
+                            onClick={() => {
+                              void dismissCompletedJob(job)
+                            }}
+                            aria-label={`Dismiss completed generation for ${title}`}
+                            className="pointer-events-none opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+                          >
+                            <X aria-hidden />
+                          </Button>
+                        </Tooltip>
+                      )}
                       <Badge variant={status.variant} className="shrink-0">
                         {status.label}
                       </Badge>

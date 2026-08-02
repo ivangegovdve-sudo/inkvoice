@@ -81,6 +81,7 @@ model PregenJob {
   generationSegmentNumber  Int?
   readyWordsInSegment      Int?
   errorMessage        String?
+  dismissedAt         Int? // Unix timestamp ms, null = visible in generation queue
   createdAt           Int // Unix timestamp ms
   updatedAt           Int // Unix timestamp ms
 

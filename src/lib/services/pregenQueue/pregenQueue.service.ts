@@ -174,6 +174,26 @@ const complete = (id: string): Promise<PregenJob | null> =>
     return toPregenJob(row)
   })
 
+const dismissCompleted = async (bookId: string, id: string): Promise<PregenJob | null> => {
+  const dismissedAt = Date.now()
+  const row = await prisma.$transaction(async tx => {
+    const result = await tx.pregenJob.updateMany({
+      where: {
+        id,
+        bookId,
+        status: PREGEN_JOB_STATUS.COMPLETED,
+        dismissedAt: null,
+      },
+      data: { dismissedAt, updatedAt: dismissedAt },
+    })
+
+    if (result.count === 0) return null
+    return tx.pregenJob.findUnique({ where: { id } })
+  })
+
+  return row ? toPregenJob(row) : null
+}
+
 // Replaces the row instead of updating it: the fresh job id makes a worker
 // that is mid-paragraph on the old job see its row vanish at the next progress
 // write and exit, instead of overwriting the new cursor with stale progress.
@@ -222,6 +242,7 @@ export const pregenQueueService = {
   pause,
   resume,
   complete,
+  dismissCompleted,
   reposition,
   cancel,
 }

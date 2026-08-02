@@ -12,6 +12,13 @@ interface RouteParams {
   params: Promise<{ bookId: string }>
 }
 
+interface PregenActionBody {
+  action?: string
+  chapter?: number
+  paragraph?: number
+  jobId?: string
+}
+
 const parsePositionParam = (value: string | null): number => {
   const parsed = parseInt(value ?? '0', 10)
 
@@ -119,7 +126,7 @@ export const DELETE = async (_request: NextRequest, { params }: RouteParams) => 
 export const PATCH = async (request: NextRequest, { params }: RouteParams) => {
   const { bookId } = await params
 
-  let body: { action?: string; chapter?: number; paragraph?: number }
+  let body: PregenActionBody
 
   try {
     body = await request.json()
@@ -129,14 +136,37 @@ export const PATCH = async (request: NextRequest, { params }: RouteParams) => {
 
   const action = body?.action
 
-  if (action !== 'pause' && action !== 'resume' && action !== 'reposition') {
+  if (
+    action !== 'pause' &&
+    action !== 'resume' &&
+    action !== 'reposition' &&
+    action !== 'dismiss'
+  ) {
     return NextResponse.json(
-      { error: 'Invalid action. Expected "pause", "resume", or "reposition".' },
+      { error: 'Invalid action. Expected "pause", "resume", "reposition", or "dismiss".' },
       { status: 400 },
     )
   }
 
   try {
+    if (action === 'dismiss') {
+      if (typeof body.jobId !== 'string' || body.jobId.length === 0) {
+        return NextResponse.json({ error: 'Dismiss requires a job ID.' }, { status: 400 })
+      }
+
+      const dismissed = await pregenQueueService.dismissCompleted(bookId, body.jobId)
+
+      if (!dismissed) {
+        return NextResponse.json(
+          { error: 'Only the matching completed generation can be dismissed.' },
+          { status: 409 },
+        )
+      }
+
+      pregenEvents.emit({ type: 'update', job: dismissed })
+      return NextResponse.json(dismissed)
+    }
+
     const job = await pregenQueueService.getByBookId(bookId)
 
     if (!job) {

@@ -27,6 +27,7 @@ export interface PregenJob {
   generationSegmentNumber: number | null
   readyWordsInSegment: number | null
   errorMessage: string | null
+  dismissedAt: number | null
   createdAt: number
   updatedAt: number
 }

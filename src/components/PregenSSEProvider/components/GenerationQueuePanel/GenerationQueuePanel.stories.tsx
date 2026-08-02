@@ -1,4 +1,4 @@
-import { expect, waitFor } from 'storybook/test'
+import { expect, userEvent, waitFor } from 'storybook/test'
 import preview from '#.storybook/preview'
 import { buildPregenJob } from '@/lib/services/pregenQueue/pregenQueue.fixtures'
 import type { Book } from '@/lib/types/book'
@@ -90,7 +90,36 @@ WithJobs.test('estimates time left for the actively generating job', ({ canvas }
 WithJobs.test('names the panel region and its close button for assistive tech', ({ canvas }) => {
   canvas.getByRole('region', { name: 'Generation Queue' })
   canvas.getByRole('button', { name: 'Close generation queue' })
+  expect(canvas.queryByRole('button', { name: /Dismiss completed generation/ })).toBeNull()
 })
+
+const stubDismissFetch = () => {
+  const original = globalThis.fetch
+  const stub: typeof fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input.toString()
+
+    if (url.startsWith('/api/pregenerate/') && init?.method === 'PATCH') {
+      const body = typeof init.body === 'string' ? JSON.parse(init.body) : null
+      const job = Object.values(usePregenStore.getState().jobs).find(
+        candidate => candidate.id === body?.jobId,
+      )
+
+      if (!job || job.status !== 'completed' || job.dismissedAt !== null) {
+        return Promise.resolve(Response.json({ error: 'Not dismissible' }, { status: 409 }))
+      }
+
+      return Promise.resolve(Response.json({ ...job, dismissedAt: Date.now() }))
+    }
+
+    return original(input, init)
+  }
+
+  globalThis.fetch = stub
+
+  return () => {
+    globalThis.fetch = original
+  }
+}
 
 /** Completed whole-book and generate-from-here segments keep their scopes distinct. */
 export const CompletedSegments = meta.story({
@@ -111,6 +140,8 @@ export const CompletedSegments = meta.story({
       jobs: { [wholeBook.bookId]: wholeBook, [fromHere.bookId]: fromHere },
       progressSamples: {},
     })
+
+    return stubDismissFetch()
   },
 })
 
@@ -120,6 +151,28 @@ CompletedSegments.test('distinguishes whole-book completion from ready-to-end', 
   expect(canvas.getByText('~4 pages ready from here')).toBeVisible()
   expect(canvas.getByText('Ready to the end')).toBeVisible()
 })
+
+CompletedSegments.test(
+  'dismisses a completed generation by its accessible action',
+  async ({ canvas }) => {
+    const dismiss = canvas.getByRole('button', {
+      name: 'Dismiss completed generation for The Strange Case of Dr. Jekyll and Mr. Hyde',
+    })
+
+    dismiss.focus()
+    expect(dismiss).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(
+        canvas.queryByRole('listitem', {
+          name: /^The Strange Case of Dr\. Jekyll and Mr\. Hyde:/,
+        }),
+      ).toBeNull()
+    })
+    expect(canvas.getByRole('listitem', { name: /^The Odyssey:/ })).toBeVisible()
+  },
+)
 
 /** Queue popover with no generation jobs queued. */
 export const Empty = meta.story({

@@ -191,3 +191,32 @@ describe('pregenQueueService (integration) — progress bounds', () => {
     expect(result?.completedParagraphs).toBe(100)
   })
 })
+
+describe('pregenQueueService (integration) — completed dismissal', () => {
+  it('persists dismissal only for the matching completed job', async () => {
+    const job = await pregenQueueService.enqueue('book-completed', 'narrator', 100)
+
+    await pregenQueueService.complete(job.id)
+    const dismissed = await pregenQueueService.dismissCompleted('book-completed', job.id)
+
+    expect(dismissed).toMatchObject({
+      id: job.id,
+      bookId: 'book-completed',
+      status: 'completed',
+    })
+    expect(dismissed?.dismissedAt).toEqual(expect.any(Number))
+    expect((await pregenQueueService.getJob(job.id))?.dismissedAt).toBe(dismissed?.dismissedAt)
+  })
+
+  it('rejects active jobs and stale book identifiers', async () => {
+    const active = await pregenQueueService.enqueue('book-active', 'narrator', 100)
+    const completed = await pregenQueueService.enqueue('book-other', 'narrator', 100)
+
+    await pregenQueueService.complete(completed.id)
+
+    expect(await pregenQueueService.dismissCompleted('book-active', active.id)).toBeNull()
+    expect(await pregenQueueService.dismissCompleted('book-stale', completed.id)).toBeNull()
+    expect((await pregenQueueService.getJob(active.id))?.dismissedAt).toBeNull()
+    expect((await pregenQueueService.getJob(completed.id))?.dismissedAt).toBeNull()
+  })
+})

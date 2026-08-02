@@ -19,6 +19,7 @@ export const buildPregenJob = (overrides: Partial<PregenJob> = {}): PregenJob =>
   generationSegmentNumber: 0,
   readyWordsInSegment: 0,
   errorMessage: null,
+  dismissedAt: null,
   createdAt: 0,
   updatedAt: 0,
   ...overrides,
