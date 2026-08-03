@@ -40,6 +40,8 @@ export const renderSegments = ({
         ref={isActive ? paragraphRef : undefined}
         data-paragraph
         data-active-paragraph={isActive || undefined}
+        data-reading-chapter={currentChapter}
+        data-reading-paragraph={segment.paragraphIndex}
         onClick={() => {
           if (window.getSelection()?.isCollapsed === false) return
           onParagraphClick?.(currentChapter, segment.paragraphIndex)

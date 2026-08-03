@@ -198,6 +198,8 @@ export const Reader = ({
               ref={isActive ? currentParagraphRef : undefined}
               data-paragraph
               data-active-paragraph={isActive || undefined}
+              data-reading-chapter={currentChapter}
+              data-reading-paragraph={idx}
               onClick={() => {
                 if (window.getSelection()?.isCollapsed === false) return
                 onParagraphClick?.(currentChapter, idx)

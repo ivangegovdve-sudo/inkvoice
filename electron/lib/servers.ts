@@ -23,6 +23,7 @@ const extendedPath = ['/opt/homebrew/bin', '/usr/local/bin', process.env.PATH].j
 
 const buildBaseEnv = (): NodeJS.ProcessEnv => ({
   ...process.env,
+  INKVOICE_RUNTIME: 'packaged',
   PATH: extendedPath,
   INKVOICE_BOOKS_DIR: paths.booksDir,
   INKVOICE_VOICES_DIR: paths.voicesDir,

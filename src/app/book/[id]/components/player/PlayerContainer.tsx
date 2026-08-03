@@ -39,6 +39,7 @@ interface PlayerContainerProps {
   disablePlayReason?: string
   /** When provided, a status row explains the missing audio and offers the way out. */
   audioGenerationStatus?: AudioGenerationStatusProps
+  onPlayingChange?: (playing: boolean) => void
 }
 
 export const PlayerContainer = ({
@@ -54,6 +55,7 @@ export const PlayerContainer = ({
   activeParagraphRef,
   disablePlayReason,
   audioGenerationStatus,
+  onPlayingChange,
 }: PlayerContainerProps) => {
   const { voices } = useVoices()
   const voiceNames = useMemo(() => voices.map(v => v.name), [voices])
@@ -82,6 +84,10 @@ export const PlayerContainer = ({
 
   const { setLoading, setError, play, resume, shouldPlay, pause, stop, setPlaying, isPlaying } =
     audioPlayer
+
+  useEffect(() => {
+    onPlayingChange?.(isPlaying)
+  }, [isPlaying, onPlayingChange])
 
   // Stable across renders (refs and no-dep callbacks), so advanceToNext keeps
   // one identity for the lifetime of the player.

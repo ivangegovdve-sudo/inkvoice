@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { readingContextMcpService } from '@/lib/services/readingContextMcp/readingContextMcp.service'
+import { SETTINGS_KEYS } from '@/lib/services/settings/settings.keys'
 import { settingsService } from '@/lib/services/settings/settings.service'
 
 interface RouteParams {
@@ -36,6 +38,17 @@ export const PUT = async (request: NextRequest, { params }: RouteParams) => {
   }
 
   try {
+    if (key === SETTINGS_KEYS.READING_CONTEXT_MCP_ENABLED) {
+      if (typeof value !== 'boolean') {
+        return NextResponse.json({ error: 'value must be a boolean' }, { status: 400 })
+      }
+
+      await settingsService.set(key, value)
+      const available = await readingContextMcpService.setEnabled(value)
+
+      return NextResponse.json({ success: true, available })
+    }
+
     await settingsService.set(key, value)
     return NextResponse.json({ success: true })
   } catch (error) {

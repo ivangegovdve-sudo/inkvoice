@@ -1,6 +1,6 @@
 # InkVoice
 
-Local EPUB reader that turns your books into audiobooks. Narration is generated on-device with neural TTS — no cloud, no accounts, no data leaving your Mac.
+Local EPUB reader that turns your books into audiobooks. Narration is generated on-device with neural TTS — no cloud and no accounts. Book text stays on your Mac unless you explicitly enable local AI reading access.
 
 ![InkVoice library](docs/screenshots/library.png)
 
@@ -30,6 +30,7 @@ First launch downloads the TTS model (~1.6 GB) into `~/.cache/huggingface/`. You
 - **11 voices included** — and you can add your own from a ~10-second reference recording
 - **Pregeneration** — synthesize a whole book's audio ahead of time, within a storage budget you control
 - **Reading progress and bookmarks** — pick up where you left off, in text or audio
+- **Optional AI reading context** — let local MCP clients read the open book, live position, selection, and spoiler-capped earlier paragraphs
 
 |                        Reader                         |                    Generation queue                     |
 | :---------------------------------------------------: | :-----------------------------------------------------: |
@@ -60,6 +61,19 @@ pnpm dev
 | `pnpm electron:build` | Desktop app (.dmg → `dist/`) |
 
 The desktop build downloads its own Node.js 22.22 and Python runtimes on the first run and caches them (`dist-node/`, `dist-python/`); these packaged runtimes are independent of the Node 24 development toolchain. Subsequent builds are much faster.
+
+## Local AI reading context
+
+InkVoice can expose the book currently open in the reader to local AI clients over read-only [Model Context Protocol](https://modelcontextprotocol.io/) tools. The feature is off by default. Enable **AI reading access** in Settings only if you trust the connected client: that client may send excerpts to its model provider.
+
+The packaged app listens at `http://127.0.0.1:49814/mcp`. Development uses `http://127.0.0.1:49815/mcp`, which is registered in this repository's `.mcp.json`. Turning the setting off stops the listener immediately.
+
+The endpoint exposes two tools:
+
+- `get_reading_context` — the open book, current playback paragraph, playing state, and anchored selection
+- `read_paragraph_range` — an inclusive, single-chapter range that is always capped at the current playback paragraph
+
+The surface is read-only and deliberately omits forward chapter structure, table of contents, and book mutations.
 
 ## Credits
 

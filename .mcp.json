@@ -1,5 +1,9 @@
 {
   "mcpServers": {
+    "inkvoice-reading-context": {
+      "type": "http",
+      "url": "http://127.0.0.1:49815/mcp"
+    },
     "inkvoice-storybook": {
       "type": "http",
       "url": "http://localhost:7007/mcp"

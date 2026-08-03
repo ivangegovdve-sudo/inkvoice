@@ -11,6 +11,7 @@ import { getVoiceFallback } from '@/lib/services/voice/helpers/getVoiceFallback/
 import { useVoiceStore } from '@/store/useVoiceStore'
 import { AppearanceCard } from './components/AppearanceCard/AppearanceCard'
 import { CreditsCard } from './components/CreditsCard/CreditsCard'
+import { ReadingContextCard } from './components/ReadingContextCard/ReadingContextCard'
 import { StorageCard } from './components/StorageCard/StorageCard'
 import { VoiceManagerCard } from './components/VoiceManagerCard/VoiceManagerCard'
 
@@ -59,6 +60,7 @@ export default function Settings() {
           <div className="min-w-0 space-y-4 lg:space-y-6">
             <StorageCard />
             <AppearanceCard />
+            <ReadingContextCard />
             <CreditsCard />
           </div>
         </div>

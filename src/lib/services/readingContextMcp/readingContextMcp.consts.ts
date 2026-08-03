@@ -1,0 +1,8 @@
+export const READING_CONTEXT_MCP_HOST = '127.0.0.1'
+export const READING_CONTEXT_MCP_PACKAGED_PORT = 49814
+export const READING_CONTEXT_MCP_DEVELOPMENT_PORT = 49815
+
+export const getReadingContextMcpPort = (): number =>
+  process.env.INKVOICE_RUNTIME === 'packaged'
+    ? READING_CONTEXT_MCP_PACKAGED_PORT
+    : READING_CONTEXT_MCP_DEVELOPMENT_PORT

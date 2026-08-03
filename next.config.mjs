@@ -1,4 +1,8 @@
 import { execSync } from 'child_process'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+const { version } = require('./package.json')
 
 const gitCommit = execSync('git rev-parse --short HEAD').toString().trim()
 const gitMessage = execSync('git log -1 --format=%s').toString().trim()
@@ -16,6 +20,7 @@ const nextConfig = {
     '/**': ['./generated/prisma/**', './node_modules/.prisma/**'],
   },
   env: {
+    NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_GIT_COMMIT: gitCommit,
     NEXT_PUBLIC_GIT_MESSAGE: gitMessage,
   },

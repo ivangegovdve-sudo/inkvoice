@@ -39,6 +39,7 @@ import { useAudioAvailability } from './hooks/useAudioAvailability/useAudioAvail
 import { useAudioGenerationStatus } from './hooks/useAudioGenerationStatus/useAudioGenerationStatus'
 import { useBookOverview } from './hooks/useBookOverview/useBookOverview'
 import { useBookSearch } from './hooks/useBookSearch/useBookSearch'
+import { useReadingContextPublisher } from './hooks/useReadingContextPublisher/useReadingContextPublisher'
 import { useRecoveryBanner } from './hooks/useRecoveryBanner/useRecoveryBanner'
 import { useReturnPosition } from './hooks/useReturnPosition/useReturnPosition'
 
@@ -77,6 +78,7 @@ export default function BookReader() {
   const [activeDrawer, setActiveDrawer] = useState<'chapter' | 'bookmark' | null>(null)
   const [showChapterEndModal, setShowChapterEndModal] = useState(false)
   const [replayKey, setReplayKey] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
   const activeParagraphRef = useRef<HTMLSpanElement>(null)
 
   const setProgress = useProgressStore(s => s.setProgress)
@@ -235,6 +237,25 @@ export default function BookReader() {
     () => overview?.chapters.map(ch => ch.title) ?? [],
     [overview?.chapters],
   )
+
+  const readingContextBook = useMemo(
+    () =>
+      overview
+        ? {
+            id: overview.id,
+            title: overview.title,
+            author: overview.author,
+          }
+        : null,
+    [overview],
+  )
+
+  useReadingContextPublisher({
+    book: readingContextBook,
+    chapter: currentChapter,
+    paragraph: currentParagraph,
+    playing: isPlaying,
+  })
 
   const {
     recoveryBookmark,
@@ -433,6 +454,7 @@ export default function BookReader() {
         onChapterEnd={handleChapterEnd}
         replayKey={replayKey}
         activeParagraphRef={activeParagraphRef}
+        onPlayingChange={setIsPlaying}
       />
 
       <ChapterDrawer

@@ -199,6 +199,8 @@ export const ContentBlock = ({
                 const tableRow = (
                   <tr
                     key={rowIndex}
+                    data-reading-chapter={currentChapter}
+                    data-reading-paragraph={paragraphIndex}
                     onClick={() => {
                       if (window.getSelection()?.isCollapsed === false) return
                       onParagraphClick?.(currentChapter, paragraphIndex)
