@@ -1,5 +1,6 @@
 import gc
 import io
+import re
 import threading
 import time
 import warnings
@@ -17,6 +18,22 @@ from api.services.voice_clone_prompt_cache import VoiceClonePromptCache
 
 CLEANUP_INTERVAL = 20
 OMNIVOICE_SAMPLE_RATE = 24000
+NEGATIVE_NO_UTTERANCE_PATTERN = re.compile(
+    r"(?P<opening>\s*(?:[\"'‘“]\s*)?)(?P<response>no\.)(?P<closing>(?:\s*[\"'’”])?\s*)",
+    re.IGNORECASE,
+)
+NEGATIVE_NO_PLACEHOLDER = "[INKVOICE_NEGATIVE_NO]"
+
+
+def _protect_standalone_negative_no(text: str) -> tuple[str, str | None]:
+    match = NEGATIVE_NO_UTTERANCE_PATTERN.fullmatch(text)
+    if match is None:
+        return text, None
+
+    protected_text = (
+        f"{match.group('opening')}{NEGATIVE_NO_PLACEHOLDER}{match.group('closing')}"
+    )
+    return protected_text, match.group("response")
 
 
 class TTSService:
@@ -76,7 +93,15 @@ class TTSService:
                     full_to_half=False,
                 )
 
-            return omnivoice_text.normalize_text(text, language)
+            protected_text, negative_no_response = _protect_standalone_negative_no(text)
+            normalized_text = omnivoice_text.normalize_text(protected_text, language)
+            if negative_no_response is None:
+                return normalized_text
+            return normalized_text.replace(
+                NEGATIVE_NO_PLACEHOLDER,
+                negative_no_response,
+                1,
+            )
 
     def get_voice_path(self, voice_name: str) -> Path:
         """Get the path to a voice file, checking app voices then custom voices."""
@@ -130,15 +155,15 @@ class TTSService:
                 tts_model = self._get_model()
                 if seed is not None:
                     _set_torch_seed(seed)
-                self.normalize_text(text)
+                synthesis_text = self.normalize_text(text)
 
                 start = time.time()
                 with torch.inference_mode():
                     audio_list = tts_model.generate(
-                        text=text,
+                        text=synthesis_text,
                         instruct=instruct,
                         class_temperature=class_temperature,
-                        normalize_text=True,
+                        normalize_text=False,
                     )
             wav = torch.as_tensor(audio_list[0])
             if wav.dim() == 1:
@@ -186,7 +211,7 @@ class TTSService:
         try:
             with self._generation_lock:
                 tts_model = self._get_model()
-                self.normalize_text(text)
+                synthesis_text = self.normalize_text(text)
 
                 start = time.time()
                 prompt_start = time.time()
@@ -199,10 +224,10 @@ class TTSService:
                 generation_start = time.time()
                 with torch.inference_mode():
                     audio_list = tts_model.generate(
-                        text=text,
+                        text=synthesis_text,
                         voice_clone_prompt=prompt_result.prompt,
                         class_temperature=0.3,
-                        normalize_text=True,
+                        normalize_text=False,
                     )
             model_generation_time_ms = int((time.time() - generation_start) * 1000)
             # OmniVoice returns ndarray for very short input; normalize to (1, T) tensor.

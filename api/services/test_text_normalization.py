@@ -29,6 +29,15 @@ def test_english_normalization_expands_spoken_forms(
     assert service.normalize_text(source, "en") == expected
 
 
+def test_english_normalization_preserves_standalone_no_and_number_abbreviations(
+    service: TTSService,
+) -> None:
+    assert service.normalize_text("‘No.’", "en") == "‘No.’"
+    assert service.normalize_text("Room No. 5", "en") == "Room Number. five"
+    assert service.normalize_text("Public Enemy No. One", "en") == "Public Enemy number One"
+    assert service.normalize_text("Symphony No. IV", "en") == "Symphony number IV"
+
+
 def test_normalization_preserves_omnivoice_control_syntax(service: TTSService) -> None:
     source = "[laughter] He plays the [B EY1 S] guitar in 2026, then gives a [sigh]."
     normalized = service.normalize_text(source, "en")

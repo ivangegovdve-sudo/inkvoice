@@ -58,7 +58,8 @@ def test_generation_serializes_shared_model_access(monkeypatch) -> None:
 
     assert [result[0] for result in results] == [b"audio", b"audio"]
     assert model.max_active_calls == 1
-    assert all(call["normalize_text"] is True for call in model.calls)
+    assert all(call["normalize_text"] is False for call in model.calls)
+    assert all(call["text"] == "The twenty first edition." for call in model.calls)
 
 
 def test_voice_design_always_uses_text_normalization(monkeypatch) -> None:
@@ -78,4 +79,5 @@ def test_voice_design_always_uses_text_normalization(monkeypatch) -> None:
 
     assert result[0] == b"audio"
     assert normalized_texts == ["Chapter 12"]
-    assert model.calls[0]["normalize_text"] is True
+    assert model.calls[0]["text"] == "Chapter 12"
+    assert model.calls[0]["normalize_text"] is False
